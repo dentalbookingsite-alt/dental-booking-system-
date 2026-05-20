@@ -725,6 +725,7 @@ body {
 /* Patients tab should use more width (table fits background better) */
 #adminPatients.admin-panel-grid {
     grid-template-columns: 1fr;
+    width: 100%;
 }
 
 #adminPatients .admin-card {

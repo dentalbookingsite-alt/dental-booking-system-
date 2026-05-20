@@ -2133,9 +2133,50 @@ function loadDentistNotes() {
 }
 
 function dentistToggleNotes() {
-    loadDentistNotes();
-    alert('Notes panel refreshed. Click the Notes tab to review treatment history.');
+    // Dentist "Add Note" button should open a modal and let dentist write notes for one of their assigned appointments.
+    // Use the same modal UI that patient-side uses: dentistNotesModal + dentistNotesTextarea + dentistNotesSaveBtn.
+
+    // Ensure modal elements exist (patient page has them; dentist page may rely on them).
+    const modal = document.getElementById('dentistNotesModal');
+    const textarea = document.getElementById('dentistNotesTextarea');
+
+    if (!modal || !textarea) {
+        alert('Notes modal elements are missing on this page. Please ensure dentistNotesModal and dentistNotesTextarea exist in dentist.html or index.html loaded view.');
+        return;
+    }
+
+    // Choose the first assigned appointment that is not finished yet; otherwise choose the most recent finished appointment.
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    if (!currentUser) {
+        alert('Please login again.');
+        return;
+    }
+
+    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
+    const assigned = appointments.filter(a => isAssignedDentist(a.dentist, currentUser.name));
+
+    if (assigned.length === 0) {
+        alert('No assigned appointments found.');
+        return;
+    }
+
+    const notFinished = assigned.filter(a => (a.status || '') !== 'Finished');
+    const pick = (notFinished.length ? notFinished : assigned)
+        .sort((a, b) => {
+            const ad = a.date ? new Date(a.date) : new Date(0);
+            const bd = b.date ? new Date(b.date) : new Date(0);
+            // newest first
+            return bd - ad;
+        })[0];
+
+    _finishAppointmentPendingId = pick.id;
+    textarea.value = pick.dentistNotes || '';
+
+    modal.style.display = 'block';
+    // Optional: focus textarea
+    setTimeout(() => textarea.focus && textarea.focus(), 0);
 }
+
 
 function saveDentistSettings(event) {
     event.preventDefault();
@@ -2239,10 +2280,10 @@ function setupAdminNavigation() {
             document.querySelectorAll('.admin-nav a').forEach(a => a.classList.remove('active'));
             this.classList.add('active');
 
-            // Hide all admin panels inside the main area
-            document.querySelectorAll('.admin-main > section').forEach(sec => sec.style.display = 'none');
-
-            // Map admin tab -> section id in your admin.html
+            // Hide only the sidebar-mapped tab panels.
+            // IMPORTANT: admin.html also contains extra dashboard blocks (schedule/calendar/pending/activity)
+            // that intentionally live inside .admin-main but are not part of the sidebar tab mapping.
+            // Hiding *all* sections breaks the dashboard.
             const sectionMap = {
                 dashboard: 'adminDashboard',
                 appointments: 'adminAppointments',
@@ -2252,6 +2293,14 @@ function setupAdminNavigation() {
                 payments: 'adminPayments',
                 settings: 'adminSettings'
             };
+
+            document.querySelectorAll('.admin-main > section').forEach(sec => {
+                const id = sec.id;
+                if (id && Object.values(sectionMap).includes(id)) {
+                    sec.style.display = 'none';
+                }
+            });
+
 
             const targetId = sectionMap[tab] || 'adminDashboard';
             const targetEl = document.getElementById(targetId);

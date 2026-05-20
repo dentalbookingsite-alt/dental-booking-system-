@@ -216,6 +216,19 @@
             </div>
         </div>
 
+        <!-- Dentist Notes Modal (for marking finished) -->
+        <div id="dentistNotesModal" class="modal" style="display:none;" onclick="closeDentistNotesModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <span class="close" onclick="closeDentistNotesModal()">&times;</span>
+                <h2>Enter Dentist Notes</h2>
+                <textarea id="dentistNotesTextarea" rows="6" style="width:100%; padding:8px; margin-top:8px;" placeholder="Enter notes or recommendations..."></textarea>
+                <div style="display:flex; gap:10px; justify-content:center; margin-top:10px;">
+                    <button class="btn-submit" id="dentistNotesSaveBtn">Save Notes</button>
+                    <button class="btn-cancel" onclick="closeDentistNotesModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
         <div id="notificationModal" class="modal">
             <div class="modal-content">
                 <span class="close" onclick="closeNotifications()">&times;</span>

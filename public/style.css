@@ -722,6 +722,16 @@ body {
     min-width: 0;
 }
 
+/* Patients tab should use more width (table fits background better) */
+#adminPatients.admin-panel-grid {
+    grid-template-columns: 1fr;
+}
+
+#adminPatients .admin-card {
+    width: 100%;
+    max-width: none;
+}
+
 .admin-topbar {
     display: flex;
     justify-content: space-between;

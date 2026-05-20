@@ -2644,6 +2644,7 @@ const joined = p.registeredDate || 'N/A';
 const appointmentCount = patientAppointments.length;
 const lastAppointment = patientAppointments
 .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+// Extract only date and time - NO dentist information displayed to admin
 const lastVisited = lastAppointment ? `${new Date(lastAppointment.date).toLocaleDateString()} ${lastAppointment.time}` : 'None';
 
 return `

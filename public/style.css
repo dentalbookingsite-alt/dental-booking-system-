@@ -723,11 +723,18 @@ body {
 }
 
 /* Patients tab should use more width (table fits background better) */
-#adminPatients.admin-panel-grid {
+#adminPatients.admin-panel-grid,
+#dentistPatients.admin-panel-grid,
+#dentistNotes.admin-panel-grid,
+#dentistSettings.admin-panel-grid {
+    grid-template-columns: 1fr;
     width: 100%;
 }
 
-#adminPatients .admin-card {
+#adminPatients .admin-card,
+#dentistPatients .admin-card,
+#dentistNotes .admin-card,
+#dentistSettings .admin-card {
     width: 100%;
     max-width: none;
 }

@@ -2089,105 +2089,95 @@ input[id$="Search"]::placeholder {
     font-size: 12px;
     color: #666;
 }
+/* ...existing code... */
+
 @media (max-width: 768px) {
-
-    .login-box, .register-box {
-        background-color: rgb(255, 255, 255);
-        position: relative;
-        left: 0;
-        padding: 18px;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        width: 100%;
-        max-width: 450px;
+    img,
+    svg,
+    video,
+    iframe {
+        max-width: 100%;
+        height: auto;
     }
 
-    .navbar {
-        flex-direction: column;
-        gap: 15px;
-        text-align: center;
-    }
-
-    .navbar-menu {
-        flex-direction: column;
-        gap: 15px;
-        width: 100%;
-    }
-
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-
-    .services-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .booking-overview {
-        grid-template-columns: 1fr;
-    }
-
-    .booking-form {
-        padding: 25px;
-        margin: 20px auto;
-    }
-
-    .booking-form button {
-        width: 100%;
-        margin: 20px 0 0;
-    }
-
-    .dashboard-container {
-        margin: 20px auto;
-    }
-
-    .appointment-details {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 480px) {
-    .login-box, .register-box {
-        background-color: rgb(255, 255, 255);
-        position: relative;
-        left: 0;
-        padding: 18px;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    .booking-form,
+    .profile-card,
+    .dashboard-hero,
+    .dashboard-summary-grid,
+    .admin-card,
+    .admin-panel-grid,
+    .appointments-card,
+    .appointment-card,
+    .welcome-section,
+    .services-grid,
+    .profile-container {
         width: 100%;
         max-width: 100%;
     }
 
-    .booking-form {
-        padding: 20px;
+    .appointments-table-wrap,
+    .admin-table-wrap {
+        overflow-x: auto;
     }
 
-    .booking-overview {
-        grid-template-columns: 1fr;
+    .admin-table,
+    .appointments-table {
+        width: 100%;
+        min-width: 0;
     }
 
-    .booking-form button {
+    .admin-section-header,
+    .admin-topbar,
+    .admin-actions,
+    .profile-actions,
+    .appointment-actions,
+    .dashboard-hero,
+    .booking-overview,
+    .admin-filter-panel,
+    .admin-staff-controls,
+    .services-grid,
+    .quick-access-grid {
+        gap: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .btn-submit,
+    .btn-submit-register,
+    .btn-submit-Verify,
+    .btn-secondary,
+    .btn-cancel {
         width: 100%;
     }
 
-    .login-box h2 {
-        font-size: 20px;
+    .form-group {
+        padding: 14px 12px;
     }
 
-    .logo {
-        width: 60px;
-        height: 60px;
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 15px;
     }
 
     .logo-section h1 {
         font-size: 22px;
     }
 
-    .navbar-brand {
-        font-size: 16px;
+    .dashboard-hero h1 {
+        font-size: 28px;
     }
 
-    .welcome-section h2 {
-        font-size: 22px;
+    .admin-appointments-top h1 {
+        font-size: 26px;
+    }
+
+    .appointment-details {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-calendar {
+        max-width: 100%;
     }
 }
 
@@ -2291,4 +2281,6 @@ input[id$="Search"]::placeholder {
                 color: #dc3545;
                 border: 1px solid #dc3545;
             }
+
+            /* ...existing code... */
 

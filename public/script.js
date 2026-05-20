@@ -529,18 +529,10 @@ const rememberMe = document.querySelector('.remember-forget input[type="checkbox
 
 const users = JSON.parse(localStorage.getItem('users') || '[]');
 
-// Dentist demo credentials (localStorage users are created on first run)
-// Allows: dentist@dentist.odbs.com / dentist123
-// and: dentist@dentist.odbs.com / dentist123
-// (You can change these demo creds anytime.)
-const isDentistDemoLogin = email === 'dentist@dentist.odbs.com' && password === 'dentist123';
-
-const user = isDentistDemoLogin
-? users.find(u => u.email === email) || null
-: users.find(u => u.email === email && u.password === password);
-
+const user = users.find(u => u.email === email && u.password === password);
 
 if (user) {
+
 localStorage.setItem('currentUser', JSON.stringify(user));
 resetLoginAttempts();
 
@@ -1343,11 +1335,26 @@ registeredDate: new Date().toLocaleDateString(),
 preferredDentist: '',
 isAdmin: true
 };
-localStorage.setItem('users', JSON.stringify([defaultAdmin]));
+
+const defaultDentist = {
+id: Date.now() + 1,
+name: 'Dentist',
+email: 'dentist@dentist.odbs.com',
+phone: '',
+password: 'dentist123',
+provider: 'dentist',
+registeredDate: new Date().toLocaleDateString(),
+preferredDentist: '',
+role: 'dentist',
+specialty: ''
+};
+
+localStorage.setItem('users', JSON.stringify([defaultAdmin, defaultDentist]));
 return;
 }
 
 const users = JSON.parse(localStorage.getItem('users') || '[]');
+
 if (!users.some(user => user.isAdmin)) {
 const defaultAdmin = {
 id: Date.now(),
@@ -1361,9 +1368,25 @@ preferredDentist: '',
 isAdmin: true
 };
 users.unshift(defaultAdmin);
-localStorage.setItem('users', JSON.stringify(users));
 }
 
+if (!users.some(user => user.role === 'dentist' || user.email === 'dentist@dentist.odbs.com')) {
+const defaultDentist = {
+id: Date.now() + 1,
+name: 'Dentist',
+email: 'dentist@dentist.odbs.com',
+phone: '',
+password: 'dentist123',
+provider: 'dentist',
+registeredDate: new Date().toLocaleDateString(),
+preferredDentist: '',
+role: 'dentist',
+specialty: ''
+};
+users.push(defaultDentist);
+}
+
+localStorage.setItem('users', JSON.stringify(users));
 }
 
 

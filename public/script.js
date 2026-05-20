@@ -1370,7 +1370,7 @@ isAdmin: true
 users.unshift(defaultAdmin);
 }
 
-if (!users.some(user => user.role === 'dentist' || user.email === 'dentist@dentist.odbs.com')) {
+if (!users.some(user => user.isDentist)) {
 const defaultDentist = {
 id: Date.now() + 1,
 name: 'Dentist',

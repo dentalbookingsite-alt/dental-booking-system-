@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+        <title>ODBS Dental Booking</title>
+        <meta name="description" content="Book dental appointments with ODBS Dental Clinic. Manage your schedule, view records, and get reminders." />
+        <meta name="author" content="ODBS Dental Clinic" />
+        <meta name="keywords" content="dental booking, dentist, appointments, ODBS" />
+        <link rel="canonical" href="https://dentalbooking.com/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="ODBS Dental Booking" />
+        <meta property="og:description" content="Book dental appointments with ODBS Dental Clinic." />
+        <meta property="og:url" content="https://dentalbooking.com/" />
+        <meta property="og:image" content="https://dentalbooking.com/images/logo.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="theme-color" content="#0b3a91" />
+        <link rel="stylesheet" href="style.css">
+    </head>
+    
+    <body>
+        <!-- Login Page -->
+        <div id="loginPage" class="login">
+            <div class="login-container">
+                <div class="login-box">
+                    <div class="logo-section">
+                        <img src="images/logo.png" alt="Dental Logo" class="logo" id="logo">
+                        <h1>Welcome Back</h1>
+                        <h2>Sign in to Your Account</h2>
+                    </div>
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <i class='bx bx-envelope'></i>
+                            <input type="email" id="loginEmail" required placeholder="Email">
+                            <span class="required-indicator">*</span>
+                        </div>
+                        <div class="form-group">
+                            <i class='bx bx-lock'></i>
+                            <input type="password" id="loginPassword" required placeholder="Password">
+                            <span class="required-indicator">*</span>
+                            <i class='bx bx-hide' id="toggleLoginPassword" style="cursor: pointer;"></i>
+                        </div>
+                        <div class="remember-forget">
+                            <label>
+                                <input type="checkbox"> Remember me
+                            </label>
+                            <a href="#" onclick="showForgotPassword()">Forgot Password?</a>
+                        </div>
+                        <button type="submit" class="btn-submit" >Login</button>
+                    </form>
+                    <div id="loginMessage" class="message"></div>
+                    <div class="division">
+                        <span class="line"></span>
+                        <span>or</span>
+                        <span class="line"></span>
+                    </div>
+                    <div class="other-login">
+                        <p>Connect with:</p>
+                        <div class="social-icons">
+                            <a href="#" class="social-icon" onclick="event.preventDefault(); socialLogin('facebook')"><i class='bx bxl-facebook'></i></a>
+                            <a href="#" class="social-icon" onclick="event.preventDefault(); socialLogin('google')"><i class='bx bxl-google'></i></a>
+                            <a href="#" class="social-icon" onclick="event.preventDefault(); socialLogin('twitter')"><i class='bx bxl-twitter'></i></a>
+                        </div>
+                    </div>
+                    <span class="switchbtn">Don't have an account? <a href="#" onclick="register()">Register</a></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forgot Password Modal -->
+        <div id="forgotPasswordModal" class="modal" onclick="closeForgotPasswordModal()" style="display: none;">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <span class="close" onclick="closeForgotPasswordModal()">&times;</span>
+                <h2>Reset Password</h2>
+                <p>Enter your email address and we'll send you a link to reset your password.</p>
+                <form id="forgotPasswordForm">
+                    <div class="form-group">
+                        <i class='bx bx-envelope'></i>
+                        <input type="email" id="resetEmail" required placeholder="Enter your email">
+                        <span class="required-indicator">*</span>
+                    </div>
+                    <button type="submit" class="btn-submit">Send Reset Link</button>
+                </form>
+                <div id="resetMessage"></div>
+            </div>
+        </div>
+
+        <!-- Email Verification Modal -->
+        <div id="emailVerificationModal" class="modalverify" onclick="closeEmailVerificationModal()" style="display: none;">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <span class="close" onclick="closeEmailVerificationModal()">&times;</span>
+                <h2>Verify Your Email</h2>
+                <p>We've sent a verification code to your email address. Please enter it below to complete your registration.</p>
+                <form id="emailVerificationForm">
+                    <div class="form-group">
+                        <i class='bx bx-key'></i>
+                        <input type="text" id="verificationCode" required placeholder="Enter 6-digit code" maxlength="6" oninput="validateVerificationCode(this)">
+                    </div>
+                    <button type="submit" class="btn-submit-Verify">Verify Email</button>
+                </form>
+                <div id="verificationMessage"></div>
+                <div id="verificationHint" class="verification-hint" style="display:none; margin-top:10px; font-size:14px; color:#153f6b"></div>
+                <div class="verification-actions">
+                    <button type="button" class="btn-link" onclick="resendVerificationCode()">Resend Code</button>
+                    <span class="timer-text" id="resendTimer">Resend available in 60s</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Social Login Modal -->
+        <div id="socialLoginModal" class="modal" onclick="closeSocialLoginModal()" style="display: none;">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <span class="close" onclick="closeSocialLoginModal()">&times;</span>
+                <h2 id="socialModalTitle">Login with Provider</h2>
+                <p id="socialModalDesc">Enter your details to complete login</p>
+                <form id="socialLoginForm">
+                    <div class="form-group">
+                        <i class='bx bx-user'></i>
+                        <input type="text" id="socialName" required placeholder="Full Name">
+                        <span class="required-indicator">*</span>
+                    </div>
+                    <div class="form-group">
+                        <i class='bx bx-envelope'></i>
+                        <input type="email" id="socialEmail" required placeholder="Email">
+                        <span class="required-indicator">*</span>
+                    </div>
+                    <div class="form-group">
+                        <i class='bx bx-phone'></i>
+                        <input type="text" id="socialPhone" required placeholder="Phone Number" oninput="validateNumericInput(this)">
+                        <span class="required-indicator">*</span>
+                    </div>
+                    <button type="submit" class="btn-submit" id="socialSubmitBtn">Continue</button>
+                </form>
+                <div id="socialMessage"></div>
+            </div>
+        </div>
+
+        <!-- register Page -->
+        <div id="registerPage" class="register" style="display: none;" >
+            <div class="login-container">
+                <div class="register-box">
+                    <div class="logo-section">
+                        <img src="images/logo.png" alt="Dental Logo" class="logo">
+                        <h1>Welcome to Dental Booking</h1>
+                        <h2>Sign up for a New Account</h2>
+                    </div>
+                    <form id="registerForm">
+                        <div class="form-group">
+                            <i class='bx bx-user'></i>
+                            <input type="text" id="registerName" required placeholder="Full Name">
+                            <span class="required-indicator">*</span>
+                        </div>
+                        <label for="registerName" class="form-label">Given Name MI. Surname</label>
+                        <div class="form-group">
+                            <i class='bx bx-envelope'></i>
+                            <input type="email" id="registerEmail" required placeholder="Email">
+                            <span class="required-indicator">*</span>
+                        </div>
+                        <div class="form-group">
+                            <i class='bx bx-phone'></i>
+                            <input type="text" id="registerPhone" required placeholder="Phone Number" oninput="validateNumericInput(this)">
+                            <span class="required-indicator">*</span>
+                        </div>
+                        <label for="registerPhone" class="form-label">(09*********)</label>
+                        <div class="form-group">
+                            <i class='bx bx-lock'></i>
+                            <input type="password" id="registerPassword" required placeholder="Password">
+                            <span class="required-indicator">*</span>
+                            <i class='bx bx-hide' id="toggleRegisterPassword" style="cursor: pointer;"></i>
+                        </div>
+                        <div class="form-group">
+                            <i class='bx bx-lock'></i>
+                            <input type="password" id="registerConfirmPassword" required placeholder="Confirm Password">
+                            <span class="required-indicator">*</span>
+                            <i class='bx bx-hide' id="toggleRegisterConfirmPassword" style="cursor: pointer;"></i>
+                        </div>
+                        <div class="remember-forget">
+                            <label>
+                                <input type="checkbox"> Remember me
+                            </label>
+                        </div>
+                        <button type="submit" class="btn-submit-register">Register</button>
+                    </form>
+                    <div class="division">
+                        <span class="line"></span>
+                        <span>or</span>
+                        <span class="line"></span>
+                    </div>
+                    <div class="other-login">
+                        <p>Sign up with:</p>
+                        <div class="social-icons">
+                            <a href="#" class="social-icon" onclick="event.preventDefault(); socialRegister('facebook')"><i class='bx bxl-facebook'></i></a>
+                            <a href="#" class="social-icon" onclick="event.preventDefault(); socialRegister('google')"><i class='bx bxl-google'></i></a>
+                            <a href="#" class="social-icon" onclick="event.preventDefault(); socialRegister('twitter')"><i class='bx bxl-twitter'></i></a>
+                        </div>
+                    </div>
+                    <span class="switchbtn">Already have an account? <a href="#" onclick="login()">Login</a></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Page -->
+    <div id="dashboardPage" class="dashboard" style="display: none;">
+        <nav class="navbar">
+            <div class="navbar-brand">
+                <img src="images/logo.png" alt="Dental Logo" class="nav-logo">
+                <span> Dental Booking</span>
+            </div>
+            <ul class="navbar-menu">
+                <li><a href="#" onclick="switchTab('dashboard'); return false;">Dashboard</a></li>
+                <li><a href="#" onclick="switchTab('booking'); return false;">Book Appointment</a></li>
+                <li><a href="#" onclick="switchTab('appointments'); return false;">My Appointments</a></li>
+                <li><a href="#" onclick="switchTab('profile'); return false;">Profile</a></li>
+                <li id="adminNavLink" style="display: none;"><a href="admin.html">Admin Panel</a></li>
+                <li id="dentistNavLink" style="display: none;"><a href="dentist.html">Dentist Panel</a></li>
+                <li><a href="#" onclick="logout(); return false;">Logout</a></li>
+            </ul>
+        </nav>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-container">
+            <!-- Home Dashboard Section -->
+            <div id="dashboardTab" class="dashboard-tab active">
+                <div class="dashboard-hero">
+                    <div class="dashboard-hero-text">
+                        <div class="hero-badge">Hello, <span id="userName"></span>!</div>
+                        <h1>Book your next visit and keep your smile healthy.</h1>
+                        <p>Find a dentist and schedule your preferred time, then track your appointments from one dashboard.</p>
+                        <button class="btn-submit hero-button" onclick="switchTab('booking')">Book Now</button>
+                    </div>
+                    <div class="dashboard-hero-image">
+                        <img src="images/logo.png" alt="Dental hero illustration">
+                    </div>
+                </div>
+
+                <div class="dashboard-summary-grid">
+                    <div class="summary-card summary-card-primary">
+                        <div class="summary-card-header">
+                            <span>Upcoming Appointment</span>
+                            <span class="summary-tag" id="nextAppointmentStatus">No Booking</span>
+                        </div>
+                        <div class="summary-card-body" id="nextAppointmentCard">
+                            <div class="summary-empty">
+                                <p>No upcoming appointments yet.</p>
+                                <small>Book a slot to see it here.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="summary-card summary-card-secondary">
+                        <div class="summary-card-header">
+                            <span>Quick Access</span>
+                            <a href="#" onclick="switchTab('appointments'); return false;">View All</a>
+                        </div>
+                        <div class="quick-access-grid">
+                            <button class="quick-access-card" onclick="switchTab('booking'); return false;">
+                                <i class='bx bx-calendar-plus'></i>
+                                <span>Book Appointment</span>
+                            </button>
+                            <button class="quick-access-card" onclick="switchTab('appointments'); return false;">
+                                <i class='bx bx-list-check'></i>
+                                <span>My Appointments</span>
+                            </button>
+                            <button class="quick-access-card" onclick="switchTab('records'); return false;">
+                                <i class='bx bx-folder-open'></i>
+                                <span>My Records</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Booking Section -->
+            <div id="bookingTab" class="dashboard-tab">
+                <h2 class="dashboard-tab-title">Book Your Appointment</h2>
+                <div class="booking-overview">
+                    <div class="overview-card">
+                        <div class="overview-card-title">Upcoming Appointments</div>
+                        <div class="overview-card-value" id="upcomingAppointmentCount">0</div>
+                        <p class="overview-card-text">See your next bookings and confirm your schedule before choosing a new slot.</p>
+                    </div>
+                    <div class="overview-card">
+                        <div class="overview-card-title">Selected Service</div>
+                        <div class="overview-card-value" id="selectedServicePreview">Choose a service</div>
+                        <p class="overview-card-text">Your selected appointment details will appear here in real time.</p>
+                    </div>
+                </div>
+                <form id="bookingForm" class="booking-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="serviceType">Service(s):<span class="required-indicator">*</span></label>
+                            <select id="serviceType" multiple required size="1">
+                                <option value="General Checkup">General Checkup - ₱1,000</option>
+                                <option value="Root Canal">Root Canal - ₱10,000</option>
+                                <option value="Teeth Whitening">Teeth Whitening - ₱11,000</option>
+                                <option value="Extraction">Extraction - ₱900/tooth</option>
+                                <option value="Cleaning">Cleaning - ₱800</option>
+                                <option value="Cavity Filling">Cavity Filling - ₱1,500</option>
+                                <option value="Braces">Braces - ₱50,000/set </option>
+                                <option value="Oral Health">Oral Health - ₱1,000 </option>
+                                <option value="Dentures">Dentures - ₱25,000/set </option>
+                                <option value="Gum Treatment">Gum Treatment - ₱5,000 </option>
+                                <option value="Crown">Crown - ₱15,000/set </option>
+                            </select>
+                        </div>                      
+                        <div class="form-group">
+                            <label for="appointmentDate">Date:<span class="required-indicator">*</span></label>
+                            <input type="date" id="appointmentDate" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="appointmentTime">Time:<span class="required-indicator">*</span></label>
+                            <select id="appointmentTime" required>
+                                <option value="">Select a time</option>
+                                <option value="09:00 AM">09:00 AM</option>
+                                <option value="09:30 AM">09:30 AM</option>
+                                <option value="10:00 AM">10:00 AM</option>
+                                <option value="10:30 AM">10:30 AM</option>
+                                <option value="11:00 AM">11:00 AM</option>
+                                <option value="11:30 AM">11:30 AM</option>
+                                <option value="01:00 PM">01:00 PM</option>
+                                <option value="01:30 PM">01:30 PM</option>
+                                <option value="02:00 PM">02:00 PM</option>
+                                <option value="02:30 PM">02:30 PM</option>
+                                <option value="03:00 PM">03:00 PM</option>
+                                <option value="03:30 PM">03:30 PM</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="dentist">Assigned Dentist:<span class="required-indicator">*</span></label>
+                            <select id="dentist" required>
+                                <option value="">Select dentist</option>
+                                <option value="Dr. Estes">Dr. Estes</option>
+                                <option value="Dr. Lee">Dr. Lee</option>
+                                <option value="Dr. Strange">Dr. Strange</option>
+                                <option value="Dr. Lim">Dr. Lim</option>
+                                <option value="Dr. Rafaela">Dr. Rafaela</option>
+                                <option value="Dr. Alvin">Dr. Alvin</option>
+                            </select>
+                            <p class="field-note">Dentist list is filtered by the selected appointment day.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="appointmentNotes">Additional Notes:</label>
+                        <textarea id="appointmentNotes" rows="4" placeholder="Any specific concerns or notes?"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-submit">Book Appointment</button>
+                    <div id="bookingMessage" class="message"></div>
+                </form>
+            </div>
+
+            <!-- Appointments Section -->
+            <div id="appointmentsTab" class="dashboard-tab">
+                <h2 class="dashboard-tab-title">My Appointments</h2>
+                <div id="appointmentsList" class="appointments-list">
+                    <p>No appointments booked yet.</p>
+                </div>
+                <button onclick="cancelAllAppointments()" class="btn-cancel" style="margin-top: 20px; display: none;" id="cancelAllBtn">Cancel All Appointments</button>
+            </div>
+
+            <!-- Records Section -->
+            <div id="recordsTab" class="dashboard-tab">
+                <h2 class="dashboard-tab-title">My Records</h2>
+                <div id="recordsList" class="appointments-list">
+                    <p>No finished appointments yet.</p>
+                </div>
+            </div>
+
+            <!-- Profile Section -->
+            <div id="profileTab" class="dashboard-tab">
+                <h2 class="dashboard-tab-title">My Profile</h2>
+                <div class="profile-container">
+                    <div class="profile-card">
+                        <div class="profile-header">
+                            <div class="profile-avatar" id="profileAvatar">👤</div>
+                            <h3 id="profileName">User Name</h3>
+                            <p id="profileProvider" class="provider-badge">Email Account</p>
+                        </div>
+                        
+                        <div class="profile-details">
+                            <div class="profile-field">
+                                <label>Email:</label>
+                                <p id="profileEmail">user@example.com</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>Phone:</label>
+                                <p id="profilePhone">555-0000</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>Preferred Dentist:</label>
+                                <p id="profileDentist">Not selected</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>Member Since:</label>
+                                <p id="profileJoinDate">Not available</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>Login Method:</label>
+                                <p id="profileLoginMethod">Email & Password</p>
+                            </div>
+                        </div>
+
+                        <div id="profileMessage" class="message"></div>
+
+                        <div class="profile-actions">
+                            <button class="btn-submit" onclick="editProfile()">Edit Profile</button>
+                            <button class="btn-cancel" onclick="changePassword()">Change Password</button>
+                        </div>
+
+                        <div id="profileEditForm" class="profile-edit-form" style="display: none; margin-top: 20px;">
+                            <h3>Edit Profile</h3>
+                            <div class="form-group">
+                                <i class='bx bx-user'></i>
+                                <input type="text" id="editProfileName" placeholder="Full Name">
+                            </div>
+                            <div class="form-group">
+                                <i class='bx bx-envelope'></i>
+                                <input type="email" id="editProfileEmail" placeholder="Email" disabled>
+                            </div>
+                            <div class="form-group">
+                                <i class='bx bx-phone'></i>
+                                <input type="text" id="editProfilePhone" placeholder="Phone Number">
+                            </div>
+                            <div class="form-group">
+                                <i class='bx bx-user-circle'></i>
+                                <select id="editProfileDentist">
+                                    <option value="">Select preferred dentist</option>
+                                    <option value="Dr. Smith">Dr. Smith</option>
+                                    <option value="Dr. Johnson">Dr. Johnson</option>
+                                    <option value="Dr. Williams">Dr. Williams</option>
+                                    <option value="Dr. Brown">Dr. Brown</option>
+                                </select>
+                            </div>
+                            <div class="form-group file-group">
+                                <i class='bx bx-image'></i>
+                                <input type="file" id="editProfileAvatar" accept="image/*">
+                            </div>
+                            <div class="profile-edit-actions" style="display: flex; gap: 10px; justify-content: center; margin-top: 10px; flex-wrap: wrap;">
+                                <button class="btn-submit" onclick="saveProfileChanges()">Save Changes</button>
+                                <button class="btn-secondary" type="button" onclick="removeProfileAvatar()">Remove Picture</button>
+                                <button class="btn-cancel" onclick="cancelProfileEdit()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+        <!-- Booking Confirmation Modal -->
+        <div id="bookingConfirmationModal" class="modal" style="display:none;">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <span class="close" onclick="closeBookingConfirmationModal()">&times;</span>
+                <h2>Booking Confirmed!</h2>
+                <div id="bookingConfirmationContent" style="white-space:pre-wrap; margin-bottom:16px; color:#073642;"></div>
+                <div style="display:flex; gap:10px; justify-content:center; margin-top:10px;">
+                    <button class="btn-cancel" onclick="closeBookingConfirmationModal()">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dentist Notes Modal (for marking finished) -->
+        <div id="dentistNotesModal" class="modal" style="display:none;" onclick="closeDentistNotesModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <span class="close" onclick="closeDentistNotesModal()">&times;</span>
+                <h2>Enter Dentist Notes</h2>
+                <textarea id="dentistNotesTextarea" rows="6" style="width:100%; padding:8px; margin-top:8px;" placeholder="Enter notes or recommendations..."></textarea>
+                <div style="display:flex; gap:10px; justify-content:center; margin-top:10px;">
+                    <button class="btn-submit" id="dentistNotesSaveBtn">Save Notes</button>
+                    <button class="btn-cancel" onclick="closeDentistNotesModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            (function() {
+                emailjs.init('KnDgbWCdBCoyBYUSE'); 
+            })();
+        </script>
+        <script src="script.js"></script>
+    </body>
+</html>
+ 

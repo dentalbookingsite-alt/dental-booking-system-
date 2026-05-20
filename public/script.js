@@ -1,4 +1,57 @@
-﻿﻿// Initialize the application
+﻿﻿// Mobile menu toggle for admin/dentist dashboard
+function toggleMobileMenu() {
+    const sidebar = document.getElementById('adminSidebar');
+    const adminPage = document.getElementById('adminPage') || document.getElementById('dentistPage');
+    if (sidebar) {
+        sidebar.classList.toggle('open');
+        if (adminPage) {
+            adminPage.classList.toggle('menu-open');
+        }
+    }
+}
+
+// Close mobile menu when a navigation link is clicked or overlay is clicked
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarLinks = document.querySelectorAll('.admin-nav a');
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            const sidebar = document.getElementById('adminSidebar');
+            const adminPage = document.getElementById('adminPage') || document.getElementById('dentistPage');
+            if (sidebar) {
+                sidebar.classList.remove('open');
+                if (adminPage) {
+                    adminPage.classList.remove('menu-open');
+                }
+            }
+        });
+    });
+
+    // Close menu when overlay is clicked
+    const adminPage = document.getElementById('adminPage') || document.getElementById('dentistPage');
+    if (adminPage) {
+        adminPage.addEventListener('click', function(e) {
+            if (e.target === adminPage && adminPage.classList.contains('menu-open')) {
+                toggleMobileMenu();
+            }
+        });
+    }
+
+    // Close menu on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const sidebar = document.getElementById('adminSidebar');
+            const adminPage = document.getElementById('adminPage') || document.getElementById('dentistPage');
+            if (sidebar && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                if (adminPage) {
+                    adminPage.classList.remove('menu-open');
+                }
+            }
+        }
+    });
+});
+
+// Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
 console.log('DOM Content Loaded - Initializing app...');
 const currentPath = window.location.pathname.toLowerCase();
@@ -2644,7 +2697,7 @@ const joined = p.registeredDate || 'N/A';
 const appointmentCount = patientAppointments.length;
 const lastAppointment = patientAppointments
 .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-// Extract only date and time - NO dentist information displayed to admin
+// Extract ONLY date and time - absolutely NO dentist information
 const lastVisited = lastAppointment ? `${new Date(lastAppointment.date).toLocaleDateString()} ${lastAppointment.time}` : 'None';
 
 return `

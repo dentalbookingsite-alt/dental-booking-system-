@@ -528,7 +528,17 @@ const password = document.getElementById('loginPassword').value;
 const rememberMe = document.querySelector('.remember-forget input[type="checkbox"]').checked;
 
 const users = JSON.parse(localStorage.getItem('users') || '[]');
-const user = users.find(u => u.email === email && u.password === password);
+
+// Dentist demo credentials (localStorage users are created on first run)
+// Allows: dentist@dentist.odbs.com / dentist123
+// and: dentist@dentist.odbs.com / dentist123
+// (You can change these demo creds anytime.)
+const isDentistDemoLogin = email === 'dentist@dentist.odbs.com' && password === 'dentist123';
+
+const user = isDentistDemoLogin
+? users.find(u => u.email === email) || null
+: users.find(u => u.email === email && u.password === password);
+
 
 if (user) {
 localStorage.setItem('currentUser', JSON.stringify(user));

@@ -2673,12 +2673,12 @@ const tbody = document.getElementById('adminPatientsBody');
 if (!tbody) return;
 
 const term = (searchTerm || getSearchValue('adminPatientsSearch')).trim().toLowerCase();
-const patients = users.filter(u => !u.isAdmin)
+const patients = users.filter(u => u.role === 'patient')
 .filter(p => {
-if (!term) return true;
-return [p.name, p.email, p.phone, p.registeredDate]
-.filter(Boolean)
-.some(value => value.toLowerCase().includes(term));
+    if (!term) return true;
+    return [p.name, p.email, p.phone, p.registeredDate]
+        .filter(Boolean)
+        .some(value => value.toLowerCase().includes(term));
 });
 
 if (patients.length === 0) {

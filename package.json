@@ -9,6 +9,10 @@
     "start": "npm run dev"
   },
   "dependencies": {
-    "@vercel/speed-insights": "^2.0.0"
+    "@vercel/speed-insights": "^2.0.0",
+    "@vercel/toolbar": "^0.2.6"
+  },
+  "devDependencies": {
+    "vercel": "^54.2.0"
   }
 }

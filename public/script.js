@@ -1,4 +1,6 @@
-﻿﻿// Mobile menu toggle for admin/dentist dashboard
+﻿﻿import { SpeedInsights } from "@vercel/speed-insights/next";
+
+// Mobile menu toggle for admin/dentist dashboard
 function toggleMobileMenu() {
     const sidebar = document.getElementById('adminSidebar');
     const adminPage = document.getElementById('adminPage') || document.getElementById('dentistPage');

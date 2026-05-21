@@ -1397,20 +1397,6 @@ preferredDentist: '',
 isAdmin: true
 };
 
-const defaultDentist = {
-id: Date.now() + 1,
-name: 'Dentist',
-email: 'dentist@dentist.odbs.com',
-phone: '',
-password: 'dentist123',
-provider: 'dentist',
-registeredDate: new Date().toLocaleDateString(),
-preferredDentist: '',
-role: 'dentist',
-specialty: '',
-isDentist: true
-};
-
 localStorage.setItem('users', JSON.stringify([defaultAdmin, defaultDentist]));
 return;
 }

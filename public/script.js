@@ -69,8 +69,8 @@ console.log('App initialization complete');
 const EMAILJS_SERVICE_ID = 'service_3123t8i';
 const EMAILJS_TEMPLATE_ID = 'template_rtig9ab';
 const EMAILJS_PUBLIC_KEY = 'KnDgbWCdBCoyBYUSE';
-// Use the default EmailJS verification template for booking notifications unless you configure a dedicated booking template.
-const EMAILJS_BOOKING_TEMPLATE_ID = EMAILJS_TEMPLATE_ID;
+// Dedicated EmailJS template for booking confirmation emails.
+const EMAILJS_BOOKING_TEMPLATE_ID = 'template_y3suj9z';
 
 // Optional Twilio credentials for SMS (set these only if you accept storing secrets in the client)
 const TWILIO_ACCOUNT_SID = '';
@@ -234,6 +234,62 @@ templateConfigured &&
 EMAILJS_PUBLIC_KEY && !EMAILJS_PUBLIC_KEY.startsWith('your_');
 }
 
+function getBookingConfirmationHtml(appointment, options = {}) {
+const logo = options.logo || '';
+const websiteLink = options.websiteLink || (typeof window !== 'undefined' ? window.location.origin : 'https://odbs.com');
+const clinicName = options.clinicName || 'ODBS Dental Clinic';
+const appointmentId = appointment.id || appointment.appointmentId || 'N/A';
+const appointmentDate = appointment.date ? new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD';
+const appointmentTime = appointment.time || 'TBD';
+const dentistName = appointment.dentist || appointment.dentistName || 'TBD';
+const serviceName = appointment.service || appointment.serviceName || 'TBD';
+const patientName = appointment.userName || appointment.patientName || 'Patient';
+
+return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Booking Confirmation</title>
+</head>
+<body style="margin:0; padding:0; font-family:Arial, sans-serif; background-color:#f4f4f4;">
+  <table align="center" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4; padding:30px 0;">
+    <tr>
+      <td>
+        <table align="center" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:10px; overflow:hidden;">
+          <tr>
+            <td align="center" style="background:#0ea5e9; padding:25px;">
+              ${logo ? `<img src="${logo}" alt="Clinic Logo" width="100" style="display:block; margin-bottom:10px;">` : ''}
+              <h1 style="color:white; margin:0;">Booking Confirmed</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px; color:#333333;">
+              <p style="font-size:16px;">Hello <strong>${patientName}</strong>,</p>
+              <p style="font-size:15px; line-height:1.6;">Your dental appointment has been successfully booked.</p>
+              <table width="100%" cellpadding="10" cellspacing="0" style="margin-top:20px; border-collapse:collapse;">
+                <tr style="background:#f1f5f9;"><td><strong>Appointment ID</strong></td><td>${appointmentId}</td></tr>
+                <tr><td><strong>Date</strong></td><td>${appointmentDate}</td></tr>
+                <tr style="background:#f1f5f9;"><td><strong>Time</strong></td><td>${appointmentTime}</td></tr>
+                <tr><td><strong>Dentist</strong></td><td>${dentistName}</td></tr>
+                <tr style="background:#f1f5f9;"><td><strong>Service</strong></td><td>${serviceName}</td></tr>
+              </table>
+              <p style="margin-top:25px; font-size:14px; line-height:1.6;">Please arrive 10–15 minutes before your scheduled appointment.</p>
+              <div style="text-align:center; margin-top:30px;">
+                <a href="${websiteLink}" style="background:#0ea5e9; color:white; text-decoration:none; padding:12px 24px; border-radius:6px; display:inline-block; font-weight:bold;">Visit Website</a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background:#f8fafc; padding:20px; font-size:12px; color:#666666;">© 2026 ${clinicName}. All rights reserved.</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 function isTwilioProxyConfigured() {
 return TWILIO_PROXY_URL && !TWILIO_PROXY_URL.startsWith('your_');
 }
@@ -261,6 +317,7 @@ to_email: appointment.userEmail,
 to_name: appointment.userName,
 booking_service: appointment.service,
 booking_date: appointment.date,
+booking_date_formatted: formattedDate,
 booking_time: appointment.time,
 booking_dentist: appointment.dentist,
 booking_phone: appointment.userPhone || '',

@@ -1397,6 +1397,19 @@ preferredDentist: '',
 isAdmin: true
 };
 
+const defaultDentist = {
+id: Date.now() + 1,
+name: 'Dentist',
+email: 'dentist@dentist.odbs.com',
+phone: '',
+password: 'dentist123',
+provider: 'dentist',
+registeredDate: new Date().toLocaleDateString(),
+role: 'dentist',
+specialty: '',
+isDentist: true
+};
+
 localStorage.setItem('users', JSON.stringify([defaultAdmin, defaultDentist]));
 return;
 }
@@ -2146,7 +2159,15 @@ body.innerHTML = filtered.map(apt => `
            <td>${apt.time || 'N/A'}</td>
            <td>${apt.userName || 'Unknown'}</td>
            <td>${escapeHtml(apt.service) || 'N/A'}</td>
-           <td>${apt.status || 'Pending'}</td>
+           <td>
+               <select class="status-select" onchange="updateAppointmentStatus(${apt.id}, this.value)">
+                   <option value="Pending" ${apt.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                   <option value="Confirmed" ${apt.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
+                   <option value="Canceled" ${apt.status === 'Canceled' ? 'selected' : ''}>Canceled</option>
+                   <option value="Reschedule" ${apt.status === 'Reschedule' ? 'selected' : ''}>Reschedule</option>
+                   <option value="Finished" ${apt.status === 'Finished' ? 'selected' : ''}>Finished</option>
+               </select>
+           </td>
            <td><button class="btn-secondary small" onclick="alert('Open notes for ${apt.userName || 'patient'}');">Notes</button></td>
        </tr>
    `).join('');
@@ -2364,14 +2385,11 @@ const tab = this.getAttribute('data-tab');
 document.querySelectorAll('.admin-nav a').forEach(a => a.classList.remove('active'));
 this.classList.add('active');
 
-            // Hide all admin panels inside the main area
-            document.querySelectorAll('.admin-main > section').forEach(sec => sec.style.display = 'none');
-
             // Map admin tab -> section id in your admin.html
             // Hide only the sidebar-mapped tab panels.
             // IMPORTANT: admin.html also contains extra dashboard blocks (schedule/calendar/pending/activity)
             // that intentionally live inside .admin-main but are not part of the sidebar tab mapping.
-            // Hiding *all* sections breaks the dashboard.
+            // Keep those extra dashboard sections visible only for the dashboard tab.
 const sectionMap = {
 dashboard: 'adminDashboard',
 appointments: 'adminAppointments',
@@ -2382,24 +2400,34 @@ payments: 'adminPayments',
 settings: 'adminSettings'
 };
 
-            document.querySelectorAll('.admin-main > section').forEach(sec => {
-                const id = sec.id;
-                if (id && Object.values(sectionMap).includes(id)) {
-                    sec.style.display = 'none';
-                }
-            });
-
+document.querySelectorAll('.admin-main > section').forEach(sec => {
+    const id = sec.id;
+    if (id && Object.values(sectionMap).includes(id)) {
+        sec.style.display = 'none';
+    }
+});
 
 const targetId = sectionMap[tab] || 'adminDashboard';
 const targetEl = document.getElementById(targetId);
 
 if (targetEl) {
-// use grid display for panel-grid elements
-if (targetEl.classList.contains('admin-panel-grid')) {
-targetEl.style.display = 'grid';
-} else {
-targetEl.style.display = 'block';
+    // use grid display for panel-grid elements
+    if (targetEl.classList.contains('admin-panel-grid')) {
+        targetEl.style.display = 'grid';
+    } else {
+        targetEl.style.display = 'block';
+    }
 }
+
+const dashboardPanels = document.querySelectorAll('.admin-main > section:not([id])');
+if (tab === 'dashboard') {
+    dashboardPanels.forEach(sec => {
+        sec.style.display = sec.classList.contains('admin-panel-grid') ? 'grid' : 'block';
+    });
+} else {
+    dashboardPanels.forEach(sec => {
+        sec.style.display = 'none';
+    });
 }
 
 // Call specific loaders for known tabs
@@ -2674,12 +2702,12 @@ if (!tbody) return;
 
 const term = (searchTerm || getSearchValue('adminPatientsSearch')).trim().toLowerCase();
 const patients = users.filter(u => u.role === 'patient')
-.filter(p => {
-    if (!term) return true;
-    return [p.name, p.email, p.phone, p.registeredDate]
-        .filter(Boolean)
-        .some(value => value.toLowerCase().includes(term));
-});
+    .filter(p => {
+        if (!term) return true;
+        return [p.name, p.email, p.phone, p.registeredDate]
+            .filter(Boolean)
+            .some(value => value.toLowerCase().includes(term));
+    });
 
 if (patients.length === 0) {
 tbody.innerHTML = '<tr><td colspan="4">No patients found.</td></tr>';
@@ -3556,8 +3584,19 @@ function approveAppointment(id) {
 let appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
 const a = appointments.find(x => x.id == id);
 if (a) {
-a.status = 'Confirmed';
-localStorage.setItem('appointments', JSON.stringify(appointments));
-adminLoadDashboard();
+    a.status = 'Confirmed';
+    localStorage.setItem('appointments', JSON.stringify(appointments));
+    adminLoadDashboard();
+}
+}
+
+function updateAppointmentStatus(id, status) {
+let appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
+const a = appointments.find(x => x.id == id);
+if (a) {
+    a.status = status;
+    localStorage.setItem('appointments', JSON.stringify(appointments));
+    loadDentistAppointments();
+    dentistLoadDashboard();
 }
 }

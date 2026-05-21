@@ -606,6 +606,14 @@ window.location.href = "admin.html"; // 🔁 redirect to admin page
 return; // stop execution
 }
 
+if (email.endsWith("@odbs.com")) {
+user.isDentist = true; // mark as dentist
+localStorage.setItem('currentUser', JSON.stringify(user));
+
+window.location.href = "dentist.html"; // 🔁 redirect to dentist page
+return; // stop execution
+}
+
 // Handle "Remember me" functionality
 if (rememberMe) {
 localStorage.setItem('rememberedCredentials', JSON.stringify({ email, password }));
@@ -1399,7 +1407,8 @@ provider: 'dentist',
 registeredDate: new Date().toLocaleDateString(),
 preferredDentist: '',
 role: 'dentist',
-specialty: ''
+specialty: '',
+isDentist: true
 };
 
 localStorage.setItem('users', JSON.stringify([defaultAdmin, defaultDentist]));
@@ -1434,7 +1443,8 @@ provider: 'dentist',
 registeredDate: new Date().toLocaleDateString(),
 preferredDentist: '',
 role: 'dentist',
-specialty: ''
+specialty: '',
+isDentist: true
 };
 users.push(defaultDentist);
 }
@@ -2673,7 +2683,6 @@ label.textContent = monthValue ? `${monthValue} ${yearValue}` : yearValue || 'Al
 // ===== PATIENTS =====
 function loadPatients(searchTerm = '') {
 const users = JSON.parse(localStorage.getItem('users') || '[]');
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
 const tbody = document.getElementById('adminPatientsBody');
 if (!tbody) return;
 
@@ -2687,29 +2696,21 @@ return [p.name, p.email, p.phone, p.registeredDate]
 });
 
 if (patients.length === 0) {
-tbody.innerHTML = '<tr><td colspan="6">No patients match this filter.</td></tr>';
+tbody.innerHTML = '<tr><td colspan="4">No patients found.</td></tr>';
 return;
 }
 
 tbody.innerHTML = patients.map(p => {
-const patientAppointments = appointments.filter(a => a.userEmail === p.email || a.userId === p.id);
 const joined = p.registeredDate || 'N/A';
-const appointmentCount = patientAppointments.length;
-const lastAppointment = patientAppointments
-.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-// Extract ONLY date and time - absolutely NO dentist information
-const lastVisited = lastAppointment ? `${new Date(lastAppointment.date).toLocaleDateString()} ${lastAppointment.time}` : 'None';
 
 return `
-       <tr>
-           <td>${p.name}</td>
-           <td>${p.email}</td>
-           <td>${p.phone || 'N/A'}</td>
-           <td>${joined}</td>
-           <td>${appointmentCount}</td>
-           <td>${lastVisited}</td>
-       </tr>
-   `;
+   <tr>
+       <td>${p.name}</td>
+       <td>${p.email}</td>
+       <td>${p.phone || 'N/A'}</td>
+       <td>${joined}</td>
+   </tr>
+`;
 }).join('');
 }
 

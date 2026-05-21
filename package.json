@@ -5,10 +5,14 @@
   "description": "Static site for ODBS Dental Booking",
   "scripts": {
     "dev": "npx serve . -l 3000",
-    "build": "echo \"No build step for static site\"",
+    "build": "npm run build:speed-insights",
+    "build:speed-insights": "esbuild src/speed-insights.js --bundle --format=iife --outfile=public/speed-insights.js --minify",
     "start": "npm run dev"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
   }
 }

@@ -3670,3 +3670,27 @@ if (a) {
     dentistLoadDashboard();
 }
 }
+
+console.log("Booking submitted");
+console.log("User:", userData);
+console.error("Supabase Error:", error);
+
+async function createAppointment(data) {
+    try {
+        console.log("Creating appointment...");
+
+        const { error } = await supabase
+            .from("appointments")
+            .insert([data]);
+
+        if (error) {
+            console.error("Insert Error:", error);
+            return;
+        }
+
+        console.log("Appointment created successfully");
+
+    } catch (err) {
+        console.error("Unexpected Error:", err);
+    }
+}

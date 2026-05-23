@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <title>ODBS Dental Booking | Dentist</title>
+        <meta name="description" content="ODBS Dental Booking dentist panel for managing assigned patients, appointments, and treatment notes." />
+        <meta name="author" content="ODBS Dental Clinic" />
+        <link rel="canonical" href="https://dentalbooking.com/dentist.html" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="ODBS Dental Booking | Dentist" />
+        <meta property="og:description" content="ODBS Dental Booking dentist panel" />
+        <meta property="og:url" content="https://dentalbooking.com/dentist.html" />
+        <meta property="og:image" content="https://dentalbooking.com/images/logo.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="theme-color" content="#0b3a91" />
+<link rel="stylesheet" href="style.css">
+
+        <!-- Speed Insights (Vercel) -->
+        <script>
+            (function () {
+                var s = document.createElement('script');
+                s.src = 'https://vitals.vercel-insights.com/v1/script.js';
+                s.async = true;
+                document.head.appendChild(s);
+            })();
+        </script>
+    </head>
+    <body>
+        <div id="dentistPage" class="admin-page">
+            <button class="mobile-menu-btn" id="mobileMenuToggle" onclick="toggleMobileMenu()">
+                <i class='bx bx-menu'></i>
+            </button>
+            <div class="admin-container">
+                <aside class="admin-sidebar" id="adminSidebar">
+                    <div class="admin-brand">
+                        <img src="images/logo.png" alt="Dental Clinic" class="admin-logo">
+                        <div>
+                            <h2>DENTAL CLINIC</h2>
+                            <p>Dentist Panel</p>
+                        </div>
+                    </div>
+                    <nav class="admin-nav">
+                        <a href="#" class="active" data-tab="dashboard" role="button" aria-controls="dentistDashboard" title="Dashboard"><i class='bx bx-grid-alt'></i> Dashboard</a>
+                        <a href="#" data-tab="appointments" role="button" aria-controls="dentistAppointments" title="My Appointments"><i class='bx bx-calendar-event'></i> Appointments</a>
+                        <a href="#" data-tab="patients" role="button" aria-controls="dentistPatients" title="Patients"><i class='bx bx-user'></i> Patients</a>
+                        <a href="#" data-tab="notes" role="button" aria-controls="dentistNotes" title="Treatment Notes"><i class='bx bx-notes'></i> Notes</a>
+                        <a href="#" data-tab="settings" role="button" aria-controls="dentistSettings" title="Settings"><i class='bx bx-cog'></i> Settings</a>
+                    </nav>
+                </aside>
+                <div class="admin-main">
+                    <header class="admin-topbar">
+                        <div>
+                            <div class="admin-title">DENTAL CLINIC DENTIST</div>
+                            <div class="admin-subtitle">Manage your assigned patients and appointment schedule</div>
+                        </div>
+                        <div class="admin-actions">
+                            <div class="admin-icons">
+                                <i class='bx bx-bell' onclick="showNotifications()"></i>
+                                <div class="admin-profile">
+                                    <img src="images/logo.png" alt="Dentist" />
+                                    <div>
+                                        <span id="dentistName">Dentist</span>
+                                        <p>Team Member</p>
+                                    </div>
+                                </div>
+                                <button class="btn-submit admin-logout-header" onclick="logoutDentist()">Logout</button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <section id="dentistDashboard" class="admin-welcome">
+                        <div>
+                            <h2>WELCOME BACK, <span id="dentistDashboardName">Dentist</span>!</h2>
+                            <p>Your daily overview (<span id="dentistTodayDate">May 12, 2026</span>)</p>
+                        </div>
+                        <div class="admin-stats-grid">
+                            <div class="admin-stat-card">
+                                <span>Assigned Appointments</span>
+                                <strong id="dentistTotalAppointments">0</strong>
+                            </div>
+                            <div class="admin-stat-card">
+                                <span>Confirmed Today</span>
+                                <strong id="dentistConfirmedToday">0</strong>
+                            </div>
+                            <div class="admin-stat-card">
+                                <span>Pending Reviews</span>
+                                <strong id="dentistPendingApprovals">0</strong>
+                            </div>
+                            <div class="admin-stat-card">
+                                <span>Upcoming Patients</span>
+                                <strong id="dentistUpcomingPatients">0</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="dentistAppointments" class="admin-panel-grid" style="display: none;">
+                        <div style="grid-column: 1 / -1;">
+                            <div class="admin-appointments-top">
+                                <h1>MY APPOINTMENTS</h1>
+                                <div class="admin-appointments-sub">Review appointments assigned to you and update status.</div>
+                            </div>
+
+                            <div class="appointments-card">
+                                <div class="appointments-card-header">
+                                    <h2>APPOINTMENT LIST</h2>
+                                    <div class="appointments-actions">
+                                        <input type="text" id="dentistAppointmentsSearch" class="search-field" placeholder="Search appointments" />
+                                        <select id="dentistAppointmentStatusFilter" style="padding:8px 12px; border-radius:8px;">
+                                            <option value="">All Status</option>
+                                            <option value="Confirmed">Confirmed</option>
+                                            <option value="Pending">Pending</option>
+                                            <option value="Finished">Finished</option>
+                                            <option value="Canceled">Canceled</option>
+                                            <option value="Reschedule">Reschedule</option>
+                                        </select>
+                                        <button class="btn-secondary" onclick="dentistToggleNotes()">Add Note</button>
+                                    </div>
+                                </div>
+                                <div class="appointments-table-wrap">
+                                    <table class="admin-table appointments-table">
+                                        <thead>
+                                            <tr>
+                                                <th>DATE</th>
+                                                <th>TIME</th>
+                                                <th>PATIENT</th>
+                                                <th>SERVICE</th>
+                                                <th>STATUS</th>
+                                                <th>ACTION</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dentistAppointmentsBody">
+                                            <tr><td colspan="6">Loading assigned appointments...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="dentistPatients" class="admin-panel-grid" style="display: none;">
+                        <div class="admin-card">
+                            <div class="admin-card-header">
+                                <h3>My Patients</h3>
+                                <div class="appointments-actions" style="gap:10px;">
+                                    <input type="text" id="dentistPatientsSearch" class="search-field" placeholder="Search patients" />
+                                    <button class="btn-secondary" onclick="dentistLoadPatients()">Refresh</button>
+                                </div>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Patient Name</th>
+                                            <th>Appointment Date</th>
+                                            <th>Service</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dentistPatientsBody">
+                                        <tr><td colspan="4">Loading patient list...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="dentistNotes" class="admin-panel-grid" style="display: none;">
+                        <div class="admin-card">
+                            <div class="admin-card-header">
+                                <h3>Treatment Notes</h3>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Patient</th>
+                                            <th>Date</th>
+                                            <th>Service</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dentistNotesBody">
+                                        <tr><td colspan="4">No notes available yet.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="dentistSettings" class="admin-panel-grid" style="display: none;">
+                        <div class="admin-card admin-settings-card">
+                            <form id="dentistSettingsForm" onsubmit="saveDentistSettings(event)">
+                                <div class="admin-card-header">
+                                    <h3>Profile Settings</h3>
+                                </div>
+                                <div class="settings-grid">
+                                    <div class="form-group">
+                                        <label for="dentistProfileNameEdit">Name</label>
+                                        <input type="text" id="dentistProfileNameEdit" placeholder="Your name" required />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="dentistProfileEmailEdit">Email</label>
+                                        <input type="email" id="dentistProfileEmailEdit" placeholder="Email" required readonly />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="dentistProfilePhoneEdit">Phone</label>
+                                        <input type="text" id="dentistProfilePhoneEdit" placeholder="Phone number" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="dentistProfileSpecialty">Specialty</label>
+                                        <input type="text" id="dentistProfileSpecialty" placeholder="Your specialty" />
+                                    </div>
+                                </div>
+                                <div class="settings-footer">
+                                    <button type="submit" class="btn-submit">Save Changes</button>
+                                </div>
+                                <div id="dentistSettingsMessage" class="message"></div>
+                            </form>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+         <!-- Dentist Notes Modal (for marking finished) -->
+        <div id="dentistNotesModal" class="modal" style="display:none;" onclick="closeDentistNotesModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <span class="close" onclick="closeDentistNotesModal()">&times;</span>
+                <h2>Enter Dentist Notes</h2>
+                <textarea id="dentistNotesTextarea" rows="6" style="width:100%; padding:8px; margin-top:8px;" placeholder="Enter notes or recommendations..."></textarea>
+                <div style="display:flex; gap:10px; justify-content:center; margin-top:10px;">
+                    <button class="btn-submit" id="dentistNotesSaveBtn">Save Notes</button>
+                    <button class="btn-cancel" onclick="closeDentistNotesModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="notificationModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeNotifications()">&times;</span>
+                <h2>🔔 Notifications</h2>
+                <div id="notificationList" style="max-height: 300px; overflow-y: auto;">
+                    No new notifications
+                </div>
+            </div>
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>

@@ -1,0 +1,7 @@
+/* Minimal globals so Next.js has a CSS entrypoint. */
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <title>ODBS Dental Booking | Admin</title>
+        <meta name="description" content="ODBS Dental Booking admin panel for managing appointments, patients, staff, services, and payments." />
+        <meta name="author" content="ODBS Dental Clinic" />
+        <link rel="canonical" href="https://dentalbooking.com/admin.html" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="ODBS Dental Booking | Admin" />
+        <meta property="og:description" content="ODBS Dental Booking admin panel" />
+        <meta property="og:url" content="https://dentalbooking.com/admin.html" />
+        <meta property="og:image" content="https://dentalbooking.com/images/logo.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="theme-color" content="#0b3a91" />
+<link rel="stylesheet" href="style.css">
+
+        <!-- Speed Insights (Vercel) -->
+        <script>
+            (function () {
+                var s = document.createElement('script');
+                s.src = 'https://vitals.vercel-insights.com/v1/script.js';
+                s.async = true;
+                document.head.appendChild(s);
+            })();
+        </script>
+    </head>
+    <body>
+        <div id="adminPage" class="admin-page">
+            <button class="mobile-menu-btn" id="mobileMenuToggle" onclick="toggleMobileMenu()">
+                <i class='bx bx-menu'></i>
+            </button>
+            <div class="admin-container">
+                <aside class="admin-sidebar" id="adminSidebar">
+                    <div class="admin-brand">
+                        <img src="images/logo.png" alt="Dental Clinic" class="admin-logo">
+                        <div>
+                            <h2>DENTAL CLINIC</h2>
+                            <p>Admin Panel</p>
+                        </div>
+                    </div>
+                    <nav class="admin-nav">
+                        <a href="#" class="active" data-tab="dashboard" role="button" aria-controls="adminDashboard" title="Dashboard"><i class='bx bx-grid-alt'></i> Dashboard</a>
+                        <a href="#" data-tab="appointments" role="button" aria-controls="adminAppointments" title="Appointments"><i class='bx bx-calendar-event'></i> Appointments</a>
+                        <a href="#" data-tab="staff" role="button" aria-controls="adminStaff" title="Doctors & Staff"><i class='bx bx-user-check'></i> Doctors & Staff</a>
+                        <a href="#" data-tab="patients" role="button" aria-controls="adminPatients" title="Patients"><i class='bx bx-user'></i> Patients</a>
+                        <a href="#" data-tab="services" role="button" aria-controls="adminServices" title="Services"><i class='bx bx-briefcase-alt-2'></i> Services</a>
+                        <a href="#" data-tab="payments" role="button" aria-controls="adminPayments" title="Payment"><i class='bx bx-credit-card'></i> Payment</a>
+                        <a href="#" data-tab="settings" role="button" aria-controls="adminSettings" title="Settings"><i class='bx bx-cog'></i> Settings</a>
+                    </nav>
+                </aside>
+                <div class="admin-main">
+                    <header class="admin-topbar">
+                        <div>
+                            <div class="admin-title">DENTAL CLINIC ADMIN</div>
+                            <div class="admin-subtitle">Manage appointments, patients, and staff</div>
+                        </div>
+                        <div class="admin-actions">
+                            <div class="admin-icons">
+                                <i class='bx bx-bell' onclick="showNotifications()"></i>
+                                <div class="admin-profile">
+                                    <img src="images/logo.png" alt="Admin" />
+                                    <div>
+                                        <span id="adminName">Admin</span>
+                                        <p>Administrator</p>
+                                    </div>
+                                </div>
+                                <button class="btn-submit admin-logout-header" onclick="logoutadmin()">Logout</button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Dashboard Content -->
+                    <section id="adminDashboard" class="admin-welcome">
+                        <div>
+                            <h2>WELCOME BACK, ADMIN!!</h2>
+<p>Today's overview (<span id="adminTodayDate"></span>)</p>
+                        </div>
+                        <div class="admin-stats-grid">
+                            <div class="admin-stat-card">
+                                <span>Total Appointments</span>
+                                <strong id="adminTotalAppointments">0</strong>
+                            </div>
+                            <div class="admin-stat-card">
+                                <span>Confirmed Bookings</span>
+                                <strong id="adminConfirmedBookings">0</strong>
+                            </div>
+                            <div class="admin-stat-card">
+                                <span>Pending Requests</span>
+                                <strong id="adminPendingRequests">0</strong>
+                            </div>
+                            <div class="admin-stat-card">
+                                <span>Dentist on Duty</span>
+                                <strong id="adminDentistOnDuty"></strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Appointments Tab -->
+                    <section id="adminAppointments" class="admin-panel-grid" style="display: none;">
+                        <div style="grid-column: 1 / -1;">
+                            <div class="admin-section-header admin-section-header--wide">
+                                <div>
+                                    <h1>APPOINTMENT</h1>
+                                    <p class="admin-section-subtitle">for the month of <span id="adminAppointmentsMonthLabel">2026</span></p>
+                                </div>
+                                <div class="admin-header-actions">
+                                    <div class="admin-filter-group">
+                                        <label>Filter month</label>
+                                        <select id="adminMonthSelect" onchange="loadAllAppointments(); updateAppointmentsLabel()">
+                                            <option value="">All Months</option>
+                                            <option value="January">January</option>
+                                            <option value="February">February</option>
+                                            <option value="March">March</option>
+                                            <option value="April">April</option>
+                                            <option value="May">May</option>
+                                            <option value="June">June</option>
+                                            <option value="July">July</option>
+                                            <option value="August">August</option>
+                                            <option value="September">September</option>
+                                            <option value="October">October</option>
+                                            <option value="November">November</option>
+                                            <option value="December">December</option>
+                                        </select>
+                                    </div>
+                                    <div class="admin-filter-group">
+                                        <label>Filter year</label>
+                                        <select id="adminYearSelect" onchange="loadAllAppointments(); updateAppointmentsLabel()">
+                                            <option value="2024">2024</option>
+                                            <option value="2025">2025</option>
+                                            <option value="2026" selected>2026</option>
+                                            <option value="2027">2027</option>
+                                        </select>
+                                    </div>
+                                    <div class="admin-filter-group admin-filter-group--status">
+                                        <label>Status</label>
+                                        <select id="adminAppointmentStatusFilter" onchange="loadAllAppointments()">
+                                            <option value="">All statuses</option>
+                                            <option value="Pending">Pending</option>
+                                            <option value="Finished">Finished</option>
+                                            <option value="Confirmed">Confirmed</option>
+                                            <option value="Canceled">Canceled</option>
+                                            <option value="Reschedule">Reschedule</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="appointments-card appointments-card--blue">
+                                <div class="appointments-card-header">
+                                    <h2>Scheduled Appointments</h2>
+                                    <div class="appointments-actions">
+                                    <input type="text" id="adminAppointmentsSearch" class="search-field" placeholder="Search appointments" />
+                                    </div>
+                                </div>
+                                <div class="appointments-table-wrap">
+                                    <table class="admin-table appointments-table appointments-table--dark">
+                                        <thead>
+                                            <tr>
+                                                <th>QUEUE #</th>
+                                                <th>APPOINTMENT ID</th>
+                                                <th>APPOINTMENT DATE</th>
+                                                <th>PATIENT ID</th>
+                                                <th>PATIENT NAME</th>
+                                                <th>DENTIST ASSIGNED</th>
+                                                <th>SERVICE</th>
+                                                <th>APPOINTMENT STATUS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="adminAllAppointmentsBody">
+                                            <tr><td colspan="8">Loading appointments...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Patients Tab -->
+                    <section id="adminPatients" class="admin-panel-grid" style="display: none;">
+                        <div class="admin-card">
+                            <div class="admin-card-header">
+                                <h3>All Patients</h3>
+                                <div class="appointments-actions" style="gap:10px;">
+                                    <input type="text" id="adminPatientsSearch" class="search-field" placeholder="Search patients" />
+                                    <button class="btn-secondary" onclick="refreshPatients()">Refresh</button>
+                                </div>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Phone</th>
+                                            <th>Joined Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminPatientsBody">
+                                        <tr><td colspan="4">Loading patients...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Staff Tab -->
+                    <section id="adminStaff" class="admin-panel-grid" style="display: none;">
+                        <div class="admin-staff-sidebar">
+                            <div class="admin-card admin-info-panel">
+                                <div class="admin-card-header">
+                                    <h3>OPTIONS</h3>
+                                </div>
+                                <div class="admin-info-buttons">
+                                    <button class="btn-secondary btn-block active" type="button" data-staff-view="data" onclick="setStaffView('data')">DATA INFORMATION</button>
+                                    <button class="btn-secondary btn-block" type="button" data-staff-view="contacts" onclick="setStaffView('contacts')">CONTACTS</button>
+                                    <button class="btn-secondary btn-block" type="button" data-staff-view="schedule" onclick="setStaffView('schedule')">SCHEDULE</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="admin-staff-main">
+                            <div class="appointments-card appointments-card--blue admin-staff-card">
+                                <div class="appointments-card-header admin-staff-card-header">
+                                    <div>
+                                        <h1>DENTIST &amp; STAFF</h1>
+                                        <p id="adminStaffHeaderSubtitle">Showing All Staff</p>
+                                    </div>
+                                    <div class="admin-staff-controls">
+                                        <select id="adminStaffRoleFilter" onchange="loadStaff()">
+                                            <option value="">All Staff</option>
+                                            <option value="Dentist">Dentist</option>
+                                            <option value="Clinic Staff">Clinic Staff</option>
+                                        </select>
+                                        <input type="text" id="adminStaffSearch" class="search-field" placeholder="Search staff" />
+                                    </div>
+                                </div>
+                                <div class="appointments-card-header appointments-card-header--sub">
+                                    <h2 id="adminStaffTableTitle">DENTIST DATA INFORMATION</h2>
+                                    <div class="appointments-actions">
+                                        <button class="btn-secondary" id="adminStaffActionButton" onclick="handleStaffActionButton()">Add Dentist/Staff</button>
+                                    </div>
+                                </div>
+                                <div class="appointments-table-wrap">
+                                    <table class="admin-table appointments-table appointments-table--dark">
+                                        <thead id="adminStaffTableHead">
+                                            <tr>
+                                                <th>CODE</th>
+                                                <th>NAME</th>
+                                                <th>EMAIL ADDRESS</th>
+                                                <th>PRIMARY CONTACT</th>
+                                                <th>SECONDARY CONTACT</th>
+                                                <th>LICENSE #</th>
+                                                <th>SPECIALIZATION</th>
+                                                <th>SALARY</th>
+                                                <th>DATE EMPLOYED</th>
+                                                <th>ACTION</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="adminStaffBody">
+                                            <tr><td colspan="10">Loading staff...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div id="staffEditorCard" class="appointments-card" style="display:none; margin-top:20px;">
+                                <div class="appointments-card-header">
+                                    <h2 id="staffFormTitle">Add Doctor / Staff</h2>
+                                </div>
+                                <form id="staffForm" onsubmit="saveStaff(event)">
+                                    <input type="hidden" id="staffEditCode" />
+                                    <div class="settings-grid">
+                                        <div class="form-group">
+                                            <label for="staffCode">Staff Code</label>
+                                            <input type="text" id="staffCode" placeholder="e.g. D004" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffName">Name</label>
+                                            <input type="text" id="staffName" placeholder="Full name" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffRole">Role</label>
+                                            <select id="staffRole" required>
+                                                <option value="Dentist">Dentist</option>
+                                                <option value="Clinic Staff">Clinic Staff</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffEmail">Email Address</label>
+                                            <input type="email" id="staffEmail" placeholder="Email address" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffPrimaryContact">Primary Contact</label>
+                                            <input type="text" id="staffPrimaryContact" placeholder="e.g. 0917-123-4567" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffSecondaryContact">Secondary Contact</label>
+                                            <input type="text" id="staffSecondaryContact" placeholder="e.g. 0933-456-7890" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffLicense">License #</label>
+                                            <input type="text" id="staffLicense" placeholder="License number" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffSpecialization">Specialization</label>
+                                            <input type="text" id="staffSpecialization" placeholder="e.g. Orthodontist" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffSalary">Salary</label>
+                                            <input type="text" id="staffSalary" placeholder="e.g. ₱150,000" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffEmployed">Date Employed</label>
+                                            <input type="text" id="staffEmployed" placeholder="e.g. February 3, 2019" />
+                                        </div>
+                                    </div>
+                                    <div class="settings-footer">
+                                        <button type="submit" class="btn-submit">Save Staff</button>
+                                        <button type="button" class="btn-secondary" onclick="cancelStaffEdit()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Services Tab -->
+                    <section id="adminServices" class="admin-panel-grid" style="display: none;">
+                        <div style="grid-column: 1 / -1;">
+                            <div class="admin-appointments-top">
+                                <h1>SERVICES</h1>
+                            </div>
+
+                            <div class="appointments-card appointments-card--blue">
+                                <div class="appointments-card-header">
+                                <div>
+                                    <h2>SERVICE TABLE</h2>
+                                    <p class="admin-card-note" id="adminServiceSummary">Showing all services</p>
+                                </div>
+                                <div class="appointments-actions">
+                                    <input type="text" id="adminServicesSearch" class="search-field" placeholder="Search services" />
+                                    <button class="btn-secondary" onclick="refreshServices()">Refresh</button>
+                                </div>
+                            </div>
+                                <div class="appointments-table-wrap">
+                                    <table class="admin-table appointments-table">
+                                        <thead>
+                                            <tr>
+                                                <th>SERVICE CODE</th>
+                                                <th>SERVICE NAME</th>
+                                                <th>SERVICE DESCRIPTION</th>
+                                                <th>PRICE</th>
+                                                <th>DURATION</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="adminServicesBody">
+                                            <tr><td colspan="5">Loading services...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Payments Tab -->
+                    <section id="adminPayments" class="admin-panel-grid" style="display: none;">
+                        <div style="grid-column: 1 / -1;">
+                            <div class="admin-appointments-top">
+                                <h1>PAYMENT</h1>
+                            </div>
+
+                            <div class="appointments-card appointments-card--blue">
+                                <div class="appointments-card-header">
+                                <div>
+                                    <h2>PAYMENT TABLE</h2>
+                                    <p class="admin-card-note" id="adminPaymentSummary">Showing all payments</p>
+                                </div>
+                                <div class="appointments-actions">
+                                    <input type="text" id="adminPaymentsSearch" class="search-field" placeholder="Search payments" />
+                                    <select id="adminPaymentsStatusFilter" onchange="loadPayments()" style="padding:8px 12px; border-radius:8px;">
+                                        <option value="">All</option>
+                                        <option value="Paid">Paid</option>
+                                        <option value="Pending">Pending</option>
+                                    </select>
+                                    <button class="btn-secondary" onclick="refreshPayments()">Refresh</button>
+                                </div>
+                            </div>
+                                <div class="appointments-table-wrap">
+                                    <table class="admin-table appointments-table">
+                                        <thead>
+                                            <tr>
+                                                <th>TRANSACTION ID</th>
+                                                <th>PATIENT NAME</th>
+                                                <th>SERVICES</th>
+                                                <th>PAYMENT TIME</th>
+                                                <th>AMOUNT</th>
+                                                <th>PAYMENT METHOD</th>
+                                                <th>PAYMENT STATUS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="adminPaymentsBody">
+                                            <tr><td colspan="7">Loading payments...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Settings Tab -->
+                    <section id="adminSettings" class="admin-panel-grid" style="display: none;">
+                        <div style="grid-column: 1 / -1;">
+                            <div class="admin-appointments-top">
+                                <h1>SETTINGS</h1>
+                                <div class="admin-appointments-sub">Manage clinic settings and system preferences.</div>
+                            </div>
+
+                            <div class="appointments-card appointments-card--blue admin-settings-card">
+                                <form id="adminSettingsForm" onsubmit="saveSettings(event)">
+                                    <div class="appointments-card-header">
+                                        <h2>Clinic Information</h2>
+                                    </div>
+                                    <div class="settings-grid">
+                                        <div class="form-group">
+                                            <label for="settingClinicName">Clinic Name</label>
+                                            <input type="text" id="settingClinicName" placeholder="Enter clinic name" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="settingClinicEmail">Clinic Email</label>
+                                            <input type="email" id="settingClinicEmail" placeholder="Enter contact email" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="settingClinicPhone">Clinic Phone</label>
+                                            <input type="text" id="settingClinicPhone" placeholder="Enter phone number" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="settingClinicAddress">Clinic Address</label>
+                                            <input type="text" id="settingClinicAddress" placeholder="Enter clinic address" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="settingClinicHours">Operating Hours</label>
+                                            <input type="text" id="settingClinicHours" placeholder="e.g. Mon-Fri 8am-5pm" />
+                                        </div>
+                                    </div>
+
+                                    <div class="appointments-card-header appointments-card-header--sub" style="margin-top:24px;">
+                                        <h2>System Preferences</h2>
+                                    </div>
+                                    <div class="settings-grid">
+                                        <div class="form-group">
+                                            <label for="settingBookingApproval">Booking Approval</label>
+                                            <select id="settingBookingApproval">
+                                                <option value="auto">Auto Approve</option>
+                                                <option value="manual">Manual Approval</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="settingDefaultDentist">Default Dentist</label>
+                                            <input type="text" id="settingDefaultDentist" placeholder="e.g. Dr. Smith" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="settingNotificationEmail">Notification Email</label>
+                                            <input type="email" id="settingNotificationEmail" placeholder="Enter notification email" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="settingPaymentMethod">Preferred Payment</label>
+                                            <select id="settingPaymentMethod">
+                                                <option value="card">Card</option>
+                                                <option value="cash">Cash</option>
+                                                <option value="gcash">GCash</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="settings-footer">
+                                        <button type="submit" class="btn-submit">Save Settings</button>
+                                        <button type="button" class="btn-secondary" onclick="resetSettings()">Reset to Default</button>
+                                    </div>
+                                    <div id="adminSettingsMessage" class="message"></div>
+                                </form>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Today's Schedule -->
+                    <section class="admin-panel-grid">
+                        <div class="admin-card admin-schedule-card">
+                            <div class="admin-card-header">
+                                <h3>Today's Appointment Schedule</h3>
+                                <button class="btn-secondary" onclick="filterTodaySchedule()">Filters</button>
+                            </div>
+                            <div id="adminDashboardScheduleFilterPanel" class="admin-filter-panel hidden">
+                                <label for="adminDashboardRangeFilter">Range:</label>
+                                <select id="adminDashboardRangeFilter" onchange="adminLoadDashboard()">
+                                    <option value="today">Today</option>
+                                    <option value="week">This Week</option>
+                                    <option value="month">This Month</option>
+                                </select>
+                                <label for="adminDashboardStatusFilter">Status:</label>
+                                <select id="adminDashboardStatusFilter" onchange="adminLoadDashboard()">
+                                    <option value="">All</option>
+                                    <option value="Confirmed">Confirmed</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Canceled">Canceled</option>
+                                    <option value="Reschedule">Reschedule</option>
+                                    <option value="Finished">Finished</option>
+                                </select>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Patient Name</th>
+                                            <th>Dentist</th>
+                                            <th>Service</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminScheduleBody">
+                                        <tr><td colspan="6">No appointments scheduled.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="admin-card admin-calendar-card">
+                            <div class="admin-card-header">
+                                <h3>Calendar View</h3>
+                            </div>
+                            <div class="admin-calendar">
+                                <div class="admin-calendar-toolbar">
+                                    <button class="calendar-nav-btn" onclick="goToPreviousMonth()" aria-label="Previous month">‹</button>
+                                    <div class="admin-calendar-header" id="calendarHeader">May 2026</div>
+                                    <button class="calendar-nav-btn" onclick="goToNextMonth()" aria-label="Next month">›</button>
+                                    <button class="btn-tertiary calendar-today-btn" onclick="goToCurrentMonth()">Today</button>
+                                </div>
+                                <div class="admin-calendar-grid" id="calendarGrid">
+                                    <!-- Dynamic calendar content -->
+                                </div>
+                                <div class="calendar-legend">
+                                    <span><span class="legend-dot booked"></span> Appointments</span>
+                                    <span><span class="legend-dot current"></span> Today</span>
+                                    <span><span class="legend-dot inactive"></span> Empty</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Pending & Activity -->
+                    <section class="admin-panel-grid">
+                        <div class="admin-card admin-pending-card">
+                            <div class="admin-card-header">
+                                <h3>Pending Booking Requests</h3>
+                                <button class="btn-submit" id="approveAllBtn" onclick="approveAllPending()" style="display: none;">Approve All</button>
+                            </div>
+                            <div id="adminPendingList" class="admin-pending-list">
+                                <div class="pending-item">
+                                    <div>
+                                        <strong>No pending requests</strong>
+                                        <p>You have no pending bookings at the moment.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="admin-card admin-activity-card">
+                            <div class="admin-card-header">
+                                <h3>Recent Activity Feed</h3>
+                            </div>
+                            <div id="adminPatientFeed" class="admin-activity-feed">
+                                <div class="activity-item">
+                                    <strong>Loading...</strong>
+                                    <p>Fetching recent activity...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Modal -->
+        <div id="notificationModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeNotifications()">&times;</span>
+                <h2>🔔 Notifications</h2>
+                <div id="notificationList" style="max-height: 300px; overflow-y: auto;">
+                    No new notifications
+                </div>
+            </div>
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>

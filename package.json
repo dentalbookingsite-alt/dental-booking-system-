@@ -1,0 +1,23 @@
+{
+  "name": "odbs-website",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dental booking website (Next.js)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.6",
+    "@types/react": "19.2.15",
+    "typescript": "5.8.2"
+  }
+}

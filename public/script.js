@@ -834,48 +834,65 @@ userNameElement.textContent = firstName;
 renderDashboardSummary();
 }
 
-function renderDashboardSummary() {
-const nextAppointmentCard = document.getElementById('nextAppointmentCard');
-const nextAppointmentStatus = document.getElementById('nextAppointmentStatus');
-const currentUserData = localStorage.getItem('currentUser');
-if (!nextAppointmentCard || !nextAppointmentStatus || !currentUserData) {
-return;
-}
+async function renderDashboardSummary() {
+  const nextAppointmentCard = document.getElementById('nextAppointmentCard');
+  const nextAppointmentStatus = document.getElementById('nextAppointmentStatus');
+  const currentUserData = localStorage.getItem('currentUser');
+  if (!nextAppointmentCard || !nextAppointmentStatus || !currentUserData) {
+    return;
+  }
 
-const currentUser = JSON.parse(currentUserData);
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const upcoming = appointments
-.filter(apt => apt.userId === currentUser.id)
-.filter(apt => new Date(apt.appointment_date || apt.date) >= new Date())
-.sort((a, b) => new Date(a.appointment_date || a.date) - new Date(b.appointment_date || b.date) || String(a.appointment_time || a.time || '').localeCompare(String(b.appointment_time || b.time || '')));
+  const currentUser = JSON.parse(currentUserData);
 
+  try {
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .eq('email', currentUser.email)
+      .order('created_at', { ascending: false });
 
-if (upcoming.length === 0) {
-nextAppointmentStatus.textContent = 'No Booking';
-nextAppointmentCard.innerHTML = `
-           <div class="summary-empty">
-               <p>No upcoming appointments yet.</p>
-               <small>Book a slot to see it here.</small>
-           </div>
-       `;
-return;
-}
+    if (error) throw error;
 
-const next = upcoming[0];
-nextAppointmentStatus.textContent = next.status || 'Confirmed';
-nextAppointmentCard.innerHTML = `
-       <div class="appointment-summary">
-           <div class="appointment-summary-left">
-               <span class="summary-label">${next.service}</span>
-               <h3>${new Date(next.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</h3>
-               <div class="summary-detail">${next.time} · ${next.dentist}</div>
-               <div class="summary-detail">${next.userPhone ? next.userPhone + ' · ' : ''}${next.userEmail}</div>
-           </div>
-           <div class="appointment-summary-right">
-               <button class="btn-submit" onclick="switchTab('appointments')">Manage</button>
-           </div>
-       </div>
-   `;
+    const upcoming = (data || [])
+      .filter(apt => {
+        const d = new Date(apt.appointment_date || apt.date);
+        return !isNaN(d) && d >= new Date();
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.appointment_date || a.date) - new Date(b.appointment_date || b.date) ||
+          String(a.appointment_time || a.time || '').localeCompare(String(b.appointment_time || b.time || ''))
+      );
+
+    if (upcoming.length === 0) {
+      nextAppointmentStatus.textContent = 'No Booking';
+      nextAppointmentCard.innerHTML = `
+        <div class="summary-empty">
+          <p>No upcoming appointments yet.</p>
+          <small>Book a slot to see it here.</small>
+        </div>
+      `;
+      return;
+    }
+
+    const next = upcoming[0];
+    nextAppointmentStatus.textContent = next.status || 'Confirmed';
+    nextAppointmentCard.innerHTML = `
+      <div class="appointment-summary">
+        <div class="appointment-summary-left">
+          <span class="summary-label">${next.service}</span>
+          <h3>${new Date(next.appointment_date || next.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</h3>
+          <div class="summary-detail">${next.appointment_time || next.time} · ${next.dentist}</div>
+          <div class="summary-detail">${currentUser.phone ? currentUser.phone + ' · ' : ''}${currentUser.email}</div>
+        </div>
+        <div class="appointment-summary-right">
+          <button class="btn-submit" onclick="switchTab('appointments')">Manage</button>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error('[dashboard] renderDashboardSummary failed:', err);
+  }
 }
 
 // Show or hide admin and dentist nav links based on current user's role
@@ -1376,51 +1393,67 @@ async function renderRecords() {
 }
 
 
-function updateBookingOverview() {
-assignDentistForService();
-const currentUserData = localStorage.getItem('currentUser');
-const upcomingCountEl = document.getElementById('upcomingAppointmentCount');
-const selectedPreviewEl = document.getElementById('selectedServicePreview');
+async function updateBookingOverview() {
+  assignDentistForService();
 
-if (!currentUserData) {
-if (upcomingCountEl) upcomingCountEl.textContent = '0';
-if (selectedPreviewEl) selectedPreviewEl.textContent = 'Choose a service';
-return;
-}
+  const currentUserData = localStorage.getItem('currentUser');
+  const upcomingCountEl = document.getElementById('upcomingAppointmentCount');
+  const selectedPreviewEl = document.getElementById('selectedServicePreview');
 
-const currentUser = JSON.parse(currentUserData);
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const userAppointments = appointments.filter(apt => apt.userId === currentUser.id && new Date(apt.date) >= new Date());
+  if (!currentUserData) {
+    if (upcomingCountEl) upcomingCountEl.textContent = '0';
+    if (selectedPreviewEl) selectedPreviewEl.textContent = 'Choose a service';
+    return;
+  }
 
-if (upcomingCountEl) {
-upcomingCountEl.textContent = userAppointments.length.toString();
-}
+  const currentUser = JSON.parse(currentUserData);
 
-const serviceSelect = document.getElementById('serviceType');
-const selectedServices = serviceSelect ? Array.from(serviceSelect.selectedOptions).map(o => o.value).filter(v => v) : [];
-const serviceType = selectedServices.join(', ');
-const appointmentDate = document.getElementById('appointmentDate') ? document.getElementById('appointmentDate').value : '';
-const appointmentTime = document.getElementById('appointmentTime') ? document.getElementById('appointmentTime').value : '';
-const dentist = document.getElementById('dentist') ? document.getElementById('dentist').value : '';
+  // Fetch upcoming appointments count from Supabase (no localStorage usage)
+  try {
+    if (upcomingCountEl && window.supabase) {
+      const { data, error } = await window.supabase
+        .from('appointments')
+        .select('appointment_date, date, appointment_time, time')
+        .eq('email', currentUser.email);
 
-let previewText = 'Choose a service';
-if (serviceType) {
-previewText = `${serviceType}`;
-if (appointmentDate) {
-const dateLabel = new Date(appointmentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-previewText += ` on ${dateLabel}`;
-}
-if (appointmentTime) {
-previewText += ` at ${appointmentTime}`;
-}
-if (dentist) {
-previewText += ` with ${dentist}`;
-}
-}
+      if (!error) {
+        const upcoming = (data || []).filter(apt => {
+          const d = new Date(apt.appointment_date || apt.date);
+          return !isNaN(d) && d >= new Date();
+        });
+        upcomingCountEl.textContent = String(upcoming.length);
+      }
+    }
+  } catch (err) {
+    console.error('[booking] updateBookingOverview count failed:', err);
+    if (upcomingCountEl) upcomingCountEl.textContent = '0';
+  }
 
-if (selectedPreviewEl) {
-selectedPreviewEl.textContent = previewText;
-}
+  const serviceSelect = document.getElementById('serviceType');
+  const selectedServices = serviceSelect
+    ? Array.from(serviceSelect.selectedOptions).map(o => o.value).filter(v => v)
+    : [];
+  const serviceType = selectedServices.join(', ');
+  const appointmentDate = document.getElementById('appointmentDate') ? document.getElementById('appointmentDate').value : '';
+  const appointmentTime = document.getElementById('appointmentTime') ? document.getElementById('appointmentTime').value : '';
+  const dentist = document.getElementById('dentist') ? document.getElementById('dentist').value : '';
+
+  let previewText = 'Choose a service';
+  if (serviceType) {
+    previewText = `${serviceType}`;
+    if (appointmentDate) {
+      const dateLabel = new Date(appointmentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      previewText += ` on ${dateLabel}`;
+    }
+    if (appointmentTime) {
+      previewText += ` at ${appointmentTime}`;
+    }
+    if (dentist) {
+      previewText += ` with ${dentist}`;
+    }
+  }
+
+  if (selectedPreviewEl) selectedPreviewEl.textContent = previewText;
 }
 
 // Cancel single appointment

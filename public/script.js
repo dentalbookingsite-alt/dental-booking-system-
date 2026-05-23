@@ -1,7 +1,4 @@
-﻿﻿
-
-// Mobile menu toggle for admin/dentist dashboard
-function toggleMobileMenu() {
+﻿﻿function toggleMobileMenu() {
     const sidebar = document.getElementById('adminSidebar');
     const adminPage = document.getElementById('adminPage') || document.getElementById('dentistPage');
     if (sidebar) {
@@ -849,8 +846,9 @@ const currentUser = JSON.parse(currentUserData);
 const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
 const upcoming = appointments
 .filter(apt => apt.userId === currentUser.id)
-.filter(apt => new Date(apt.date) >= new Date())
-.sort((a, b) => new Date(a.date) - new Date(b.date) || a.time.localeCompare(b.time));
+.filter(apt => new Date(apt.appointment_date || apt.date) >= new Date())
+.sort((a, b) => new Date(a.appointment_date || a.date) - new Date(b.appointment_date || b.date) || String(a.appointment_time || a.time || '').localeCompare(String(b.appointment_time || b.time || '')));
+
 
 if (upcoming.length === 0) {
 nextAppointmentStatus.textContent = 'No Booking';
@@ -1067,191 +1065,203 @@ messageElement.style.display = 'none';
 
 // ===== BOOKING FUNCTIONS =====
 
-// Handle booking
-function handleBooking(e) {
-e.preventDefault();
+// Handle booking (Supabase)
+async function handleBooking(e) {
+  e.preventDefault();
 
-try {
-const currentUserData = localStorage.getItem('currentUser');
-console.log('Current user data:', currentUserData);
+  try {
+    const currentUserData = localStorage.getItem('currentUser');
+    console.log('[booking] Current user data:', currentUserData);
 
-if (!currentUserData) {
-showMessage('Please login first to book an appointment!', 'error', 'bookingMessage');
-return;
+    if (!currentUserData) {
+      showMessage('Please login first to book an appointment!', 'error', 'bookingMessage');
+      return;
+    }
+
+    const currentUser = JSON.parse(currentUserData);
+
+    if (!currentUser || !currentUser.id) {
+      showMessage('Please login first to book an appointment!', 'error', 'bookingMessage');
+      return;
+    }
+
+    const serviceSelect = document.getElementById('serviceType');
+    const selectedServices = serviceSelect
+      ? Array.from(serviceSelect.selectedOptions).map(o => o.value).filter(v => v)
+      : [];
+
+    const serviceType = selectedServices.join(', ');
+    const appointmentDate = document.getElementById('appointmentDate').value;
+    const appointmentTime = document.getElementById('appointmentTime').value;
+    const dentist = document.getElementById('dentist').value;
+    const notes = document.getElementById('appointmentNotes').value;
+
+    console.log('[booking] Form values:', { serviceType, appointmentDate, appointmentTime, dentist });
+
+    if (!selectedServices.length || !appointmentDate || !appointmentTime || !dentist) {
+      showMessage('Please fill in all required fields!', 'error', 'bookingMessage');
+      return;
+    }
+
+    // Slot conflict check (optional). We do not block perfectly here because
+    // the single source of truth is the DB; realtime will sync results.
+
+    const payload = {
+      name: currentUser.name,
+      email: currentUser.email,
+      phone: currentUser.phone,
+      service: serviceType,
+      appointment_date: appointmentDate,
+      appointment_time: appointmentTime,
+      // Extra fields your existing UI expects
+      dentist: dentist,
+      notes: notes,
+      status: 'Confirmed',
+      userId: currentUser.id,
+      created_at: new Date().toISOString()
+    };
+
+    showMessage('Booking request sent. Saving to database...', 'success', 'bookingMessage');
+
+    const inserted = await supabaseInsertAppointment(payload);
+    console.log('[booking] Inserted appointment row(s):', inserted);
+
+    // Keep the object shape expected by your email templates/UI
+    const appointment = {
+      id: inserted?.[0]?.id || Date.now(),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userEmail: currentUser.email,
+      userPhone: currentUser.phone,
+      service: serviceType,
+      date: appointmentDate,
+      time: appointmentTime,
+      dentist: dentist,
+      notes: notes,
+      status: 'Confirmed'
+    };
+
+    showMessage('Appointment booked successfully! Sending confirmations...', 'success', 'bookingMessage');
+    resetForm('bookingForm');
+
+    // Kick off email/SMS confirmations (existing behavior)
+    Promise.all([
+      sendBookingConfirmationEmail(appointment),
+      sendBookingConfirmationSMS(appointment)
+    ]).then(([emailSent, smsSent]) => {
+      _lastConfirmationResults = { emailSent: !!emailSent, smsSent: !!smsSent };
+
+      let confirmationMsg = 'Appointment booked successfully!';
+      if (emailSent) confirmationMsg += ' Email confirmation sent.';
+      if (smsSent) confirmationMsg += ' SMS confirmation sent.';
+      if (!emailSent && !smsSent) confirmationMsg += ' (No confirmation sent — configure EmailJS or Twilio.)';
+      showMessage(confirmationMsg, 'success', 'bookingMessage');
+
+      showBookingConfirmationModal(appointment);
+    }).catch(err => {
+      console.error('[booking] Error sending confirmations:', err);
+      _lastConfirmationResults = { emailSent: false, smsSent: false };
+      showMessage('Appointment booked but confirmation delivery failed.', 'error', 'bookingMessage');
+    });
+
+    setTimeout(() => {
+      switchTab('appointments');
+      // UI will refresh from realtime/select.
+    }, 750);
+
+  } catch (error) {
+    console.error('[booking] Error in handleBooking:', error);
+    showMessage('An error occurred: ' + (error?.message || error), 'error', 'bookingMessage');
+  }
 }
 
-const currentUser = JSON.parse(currentUserData);
-
-// Check if user is logged in
-if (!currentUser || !currentUser.id) {
-showMessage('Please login first to book an appointment!', 'error', 'bookingMessage');
-return;
-}
-
-// Get form values (support multiple selected services)
-const serviceSelect = document.getElementById('serviceType');
-const selectedServices = serviceSelect ? Array.from(serviceSelect.selectedOptions).map(o => o.value).filter(v => v) : [];
-const serviceType = selectedServices.join(', ');
-const appointmentDate = document.getElementById('appointmentDate').value;
-const appointmentTime = document.getElementById('appointmentTime').value;
-const dentist = document.getElementById('dentist').value;
-const notes = document.getElementById('appointmentNotes').value;
-
-console.log('Form values:', {serviceType, appointmentDate, appointmentTime, dentist});
-
-// Validate form fields
-if (!selectedServices.length || !appointmentDate || !appointmentTime || !dentist) {
-showMessage('Please fill in all required fields!', 'error', 'bookingMessage');
-return;
-}
-
-// Check if appointment slot is already booked
-const appointmentsData = localStorage.getItem('appointments') || '[]';
-const appointments = JSON.parse(appointmentsData);
-
-const isSlotTaken = appointments.some(apt => 
-apt.date === appointmentDate && 
-apt.time === appointmentTime && 
-apt.dentist === dentist
-);
-
-if (isSlotTaken) {
-showMessage('This time slot is already booked. Please choose another.', 'error', 'bookingMessage');
-return;
-}
-
-// Create appointment object
-const appointment = {
-id: Date.now(),
-userId: currentUser.id,
-userName: currentUser.name,
-userEmail: currentUser.email,
-userPhone: currentUser.phone,
-service: serviceType,
-date: appointmentDate,
-time: appointmentTime,
-dentist: dentist,
-notes: notes,
-status: 'Confirmed',
-bookedDate: new Date().toLocaleDateString()
-};
-
-console.log('Appointment to save:', appointment);
-
-// Save appointment
-appointments.push(appointment);
-localStorage.setItem('appointments', JSON.stringify(appointments));
-
-console.log('Appointments saved:', appointments);
-
-// Optimistic success message (we'll update with confirmation delivery status)
-showMessage('Appointment booked successfully! Sending confirmations...', 'success', 'bookingMessage');
-resetForm('bookingForm');
-updateBookingOverview();
-
-// Send confirmations (email + SMS if configured)
-Promise.all([
-sendBookingConfirmationEmail(appointment),
-sendBookingConfirmationSMS(appointment)
-]).then(([emailSent, smsSent]) => {
-// store results for the modal to display
-_lastConfirmationResults = { emailSent: !!emailSent, smsSent: !!smsSent };
-
-let confirmationMsg = 'Appointment booked successfully!';
-if (emailSent) confirmationMsg += ' Email confirmation sent.';
-if (smsSent) confirmationMsg += ' SMS confirmation sent.';
-if (!emailSent && !smsSent) confirmationMsg += ' (No confirmation sent — configure EmailJS or Twilio.)';
-showMessage(confirmationMsg, 'success', 'bookingMessage');
-
-// Show formatted confirmation modal with appointment details and .ics download
-console.log('Notification results:', _lastConfirmationResults);
-showBookingConfirmationModal(appointment);
-}).catch(err => {
-console.error('Error sending confirmations:', err);
-_lastConfirmationResults = { emailSent: false, smsSent: false };
-showMessage('Appointment booked but confirmation delivery failed.', 'error', 'bookingMessage');
-});
-
-// Switch to appointments tab
-setTimeout(() => {
-switchTab('appointments');
-}, 1500);
-
-} catch (error) {
-console.error('Error in handleBooking:', error);
-showMessage('An error occurred: ' + error.message, 'error', 'bookingMessage');
-}
-}
 
 
 // Display appointments
-function displayAppointments() {
-const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+async function displayAppointments() {
+  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  if (!currentUser) {
+    alert('Please login to view appointments');
+    return;
+  }
 
-if (!currentUser) {
-alert('Please login to view appointments');
-return;
+  const appointmentsList = document.getElementById('appointmentsList');
+  const cancelAllBtn = document.getElementById('cancelAllBtn');
+  if (!appointmentsList) return;
+
+  try {
+    console.log('[appointments] displayAppointments: selecting from Supabase for user', {
+      userId: currentUser.id,
+      email: currentUser.email,
+    });
+
+    // If your DB design does not include userId, switch to filtering by email.
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .eq('email', currentUser.email)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[appointments] Supabase select error:', error);
+      throw error;
+    }
+
+    const userAppointments = data || [];
+
+    if (userAppointments.length === 0) {
+      appointmentsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">No appointments booked yet.</p>';
+      if (cancelAllBtn) cancelAllBtn.style.display = 'none';
+      return;
+    }
+
+    if (cancelAllBtn) cancelAllBtn.style.display = 'flex';
+
+    appointmentsList.innerHTML = userAppointments.map(apt => {
+      const notesHtml = apt.notes ? `<div style="background: #f0f0f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 14px;"><strong>Notes:</strong> ${escapeHtml(apt.notes)}</div>` : '';
+      const dentistNotesHtml = apt.dentistNotes ? `<div style="background: #f7fff4; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 14px;"><strong>Dentist's Notes:</strong> ${escapeHtml(apt.dentistNotes)}</div>` : '';
+      const finishedInfo = apt.status === 'Finished' && apt.finishedDate ? `<div style="font-size:13px; color:#6b7280; margin-bottom:8px;">Finished: ${new Date(apt.finishedDate).toLocaleString()}</div>` : '';
+
+      return `
+        <div class="appointment-card">
+          <h3>📅 ${escapeHtml(apt.service)}</h3>
+          <div class="appointment-details">
+            <div class="detail-item">
+              <div class="detail-label">Date</div>
+              <div class="detail-value">${new Date(apt.appointment_date).toLocaleDateString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Time</div>
+              <div class="detail-value">${escapeHtml(apt.appointment_time)}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Dentist</div>
+              <div class="detail-value">${escapeHtml(apt.dentist || '')}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Services</div>
+              <div class="detail-value">${formatServiceHTML(apt.service)}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Status</div>
+              <div class="detail-value" style="color: ${apt.status === 'Finished' ? '#6b7280' : '#28a745'};">${escapeHtml(apt.status || '')}</div>
+            </div>
+          </div>
+          ${finishedInfo}
+          ${notesHtml}
+          ${dentistNotesHtml}
+          <div class="appointment-actions">
+            <button class="btn-cancel" onclick="cancelAppointment(${apt.id})">Cancel Appointment</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    console.error('[appointments] displayAppointments failed:', error);
+    appointmentsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">Failed to load appointments.</p>';
+  }
 }
 
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-
-const userAppointments = appointments.filter(apt => apt.userId === currentUser.id);
-const appointmentsList = document.getElementById('appointmentsList');
-const cancelAllBtn = document.getElementById('cancelAllBtn');
-
-if (userAppointments.length === 0) {
-appointmentsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">No appointments booked yet.</p>';
-cancelAllBtn.style.display = 'none';
-return;
-}
-
-cancelAllBtn.style.display = userAppointments.length > 0 ? 'flex' : 'none';
-
-appointmentsList.innerHTML = userAppointments.map(apt => {
-const notesHtml = apt.notes ? `<div style="background: #f0f0f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 14px;"><strong>Notes:</strong> ${apt.notes}</div>` : '';
-const dentistNotesHtml = apt.dentistNotes ? `<div style="background: #f7fff4; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 14px;"><strong>Dentist's Notes:</strong> ${apt.dentistNotes}</div>` : '';
-const finishedInfo = apt.status === 'Finished' && apt.finishedDate ? `<div style="font-size:13px; color:#6b7280; margin-bottom:8px;">Finished: ${new Date(apt.finishedDate).toLocaleString()}</div>` : '';
-
-const actions = [];
-actions.push(`<button class="btn-cancel" onclick="cancelAppointment(${apt.id})">Cancel Appointment</button>`);
-// Only show 'Mark as Finished' for patients viewing finished appointments with dentist notes
-// (actual finish is handled by admin interface)
-
-return `
-       <div class="appointment-card">
-           <h3>📅 ${escapeHtml(apt.service)}</h3>
-           <div class="appointment-details">
-               <div class="detail-item">
-                   <div class="detail-label">Date</div>
-                   <div class="detail-value">${new Date(apt.date).toLocaleDateString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</div>
-               </div>
-               <div class="detail-item">
-                   <div class="detail-label">Time</div>
-                   <div class="detail-value">${apt.time}</div>
-               </div>
-               <div class="detail-item">
-                   <div class="detail-label">Dentist</div>
-                   <div class="detail-value">${escapeHtml(apt.dentist)}</div>
-               </div>
-               <div class="detail-item">
-                   <div class="detail-label">Services</div>
-                   <div class="detail-value">${formatServiceHTML(apt.service)}</div>
-               </div>
-               <div class="detail-item">
-                   <div class="detail-label">Status</div>
-                   <div class="detail-value" style="color: ${apt.status === 'Finished' ? '#6b7280' : '#28a745'};">${escapeHtml(apt.status)}</div>
-               </div>
-           </div>
-           ${finishedInfo}
-           ${notesHtml}
-           ${dentistNotesHtml}
-           <div class="appointment-actions">
-               ${actions.join(' ')}
-           </div>
-       </div>
-   `;
-}).join('');
-}
 
 // Mark appointment as finished and capture dentist's notes (modal-based)
 let _finishAppointmentPendingId = null;
@@ -1270,26 +1280,42 @@ if (modal) modal.style.display = 'none';
 _finishAppointmentPendingId = null;
 }
 
-function saveDentistNotesFromModal() {
-if (!_finishAppointmentPendingId) return closeDentistNotesModal();
-const notes = document.getElementById('dentistNotesTextarea').value || '';
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const idx = appointments.findIndex(a => a.id === _finishAppointmentPendingId);
-if (idx === -1) {
-alert('Appointment not found');
-closeDentistNotesModal();
-return;
+async function saveDentistNotesFromModal() {
+  if (!_finishAppointmentPendingId) return closeDentistNotesModal();
+  const notes = document.getElementById('dentistNotesTextarea').value || '';
+
+  try {
+    console.log('[appointments] saveDentistNotesFromModal update:', _finishAppointmentPendingId);
+
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .update({
+        status: 'Finished',
+        dentistNotes: notes,
+        finishedDate: new Date().toISOString(),
+      })
+      .eq('id', _finishAppointmentPendingId)
+      .select();
+
+    if (error) {
+      console.error('[appointments] saveDentistNotesFromModal update error:', error);
+      throw error;
+    }
+
+    closeDentistNotesModal();
+    showMessage('Appointment marked as finished and saved to records.', 'success', 'bookingMessage');
+
+    // Refresh UI views if present
+    if (document.getElementById('appointmentsList')) await displayAppointments();
+    if (document.getElementById('recordsList')) await renderRecords();
+    if (document.getElementById('adminAllAppointmentsBody')) await loadAllAppointments();
+    if (document.getElementById('dentistTotalAppointments')) dentistLoadDashboard();
+  } catch (err) {
+    console.error('[appointments] saveDentistNotesFromModal failed:', err);
+    alert('Failed to save dentist notes. Check console for details.');
+  }
 }
 
-appointments[idx].status = 'Finished';
-appointments[idx].dentistNotes = notes;
-appointments[idx].finishedDate = new Date().toISOString();
-localStorage.setItem('appointments', JSON.stringify(appointments));
-displayAppointments();
-renderRecords();
-closeDentistNotesModal();
-showMessage('Appointment marked as finished and saved to records.', 'success', 'bookingMessage');
-}
 
 // wire save button (in case DOM loaded already)
 document.addEventListener('DOMContentLoaded', function () {
@@ -1298,31 +1324,43 @@ if (saveBtn) saveBtn.addEventListener('click', saveDentistNotesFromModal);
 });
 
 // Render finished appointments (records)
-function renderRecords() {
-const currentUserData = localStorage.getItem('currentUser');
-const recordsList = document.getElementById('recordsList');
-if (!recordsList) return;
-if (!currentUserData) {
-recordsList.innerHTML = '<p style="text-align:center; padding:40px; color:#999;">Please login to view records.</p>';
-return;
-}
+async function renderRecords() {
+  const currentUserData = localStorage.getItem('currentUser');
+  const recordsList = document.getElementById('recordsList');
+  if (!recordsList) return;
+  if (!currentUserData) {
+    recordsList.innerHTML = '<p style="text-align:center; padding:40px; color:#999;">Please login to view records.</p>';
+    return;
+  }
 
-const currentUser = JSON.parse(currentUserData);
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const finished = appointments.filter(apt => apt.userId === currentUser.id && apt.status === 'Finished')
-.sort((a,b) => new Date(b.finishedDate || 0) - new Date(a.finishedDate || 0));
+  try {
+    const currentUser = JSON.parse(currentUserData);
 
-if (finished.length === 0) {
-recordsList.innerHTML = '<p style="text-align:center; padding:40px; color:#999;">No finished appointments yet.</p>';
-return;
-}
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .eq('email', currentUser.email)
+      .eq('status', 'Finished')
+      .order('finishedDate', { ascending: false });
 
-recordsList.innerHTML = finished.map(apt => `
+    if (error) {
+      console.error('[records] select error:', error);
+      throw error;
+    }
+
+    const finished = data || [];
+
+    if (finished.length === 0) {
+      recordsList.innerHTML = '<p style="text-align:center; padding:40px; color:#999;">No finished appointments yet.</p>';
+      return;
+    }
+
+    recordsList.innerHTML = finished.map(apt => `
        <div class="appointment-card">
            <h3>${escapeHtml(apt.service)}</h3>
            <div class="appointment-details">
-               <div class="detail-item"><div class="detail-label">Date</div><div class="detail-value">${new Date(apt.date).toLocaleDateString()}</div></div>
-               <div class="detail-item"><div class="detail-label">Time</div><div class="detail-value">${escapeHtml(apt.time)}</div></div>
+               <div class="detail-item"><div class="detail-label">Date</div><div class="detail-value">${new Date(apt.appointment_date || apt.date).toLocaleDateString()}</div></div>
+               <div class="detail-item"><div class="detail-label">Time</div><div class="detail-value">${escapeHtml(apt.appointment_time || apt.time)}</div></div>
                <div class="detail-item"><div class="detail-label">Dentist</div><div class="detail-value">${escapeHtml(apt.dentist)}</div></div>
                <div class="detail-item"><div class="detail-label">Services</div><div class="detail-value">${formatServiceHTML(apt.service)}</div></div>
                <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">${escapeHtml(apt.status)}</div></div>
@@ -1331,7 +1369,12 @@ recordsList.innerHTML = finished.map(apt => `
            <div style="font-size:13px; color:#6b7280;">Finished: ${apt.finishedDate ? new Date(apt.finishedDate).toLocaleString() : 'N/A'}</div>
        </div>
    `).join('');
+  } catch (err) {
+    console.error('[records] renderRecords failed:', err);
+    recordsList.innerHTML = '<p style="text-align:center; padding:40px; color:#999;">Failed to load records.</p>';
+  }
 }
+
 
 function updateBookingOverview() {
 assignDentistForService();
@@ -1381,27 +1424,64 @@ selectedPreviewEl.textContent = previewText;
 }
 
 // Cancel single appointment
-function cancelAppointment(appointmentId) {
-if (confirm('Are you sure you want to cancel this appointment?')) {
-let appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-appointments = appointments.filter(apt => apt.id !== appointmentId);
-localStorage.setItem('appointments', JSON.stringify(appointments));
-displayAppointments();
-alert('Appointment cancelled successfully!');
-}
+async function cancelAppointment(appointmentId) {
+  if (!confirm('Are you sure you want to cancel this appointment?')) return;
+
+  try {
+    console.log('[appointments] cancelAppointment:', appointmentId);
+
+    const { error } = await window.supabase
+      .from('appointments')
+      .delete()
+      .eq('id', appointmentId);
+
+    if (error) {
+      console.error('[appointments] cancelAppointment delete error:', error);
+      throw error;
+    }
+
+    // Realtime subscription will refresh UI, but we also refresh immediately.
+    await displayAppointments();
+    if (document.getElementById('adminAllAppointmentsBody')) await loadAllAppointments();
+    if (document.getElementById('adminScheduleBody')) adminLoadDashboard();
+    if (document.getElementById('dentistTotalAppointments')) dentistLoadDashboard();
+  } catch (err) {
+    console.error('[appointments] cancelAppointment failed:', err);
+    alert('Failed to cancel appointment. Check console for details.');
+  }
 }
 
+
 // Cancel all appointments
-function cancelAllAppointments() {
-if (confirm('Are you sure you want to cancel all your appointments? This action cannot be undone.')) {
-const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-let appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-appointments = appointments.filter(apt => apt.userId !== currentUser.id);
-localStorage.setItem('appointments', JSON.stringify(appointments));
-displayAppointments();
-alert('All appointments cancelled successfully!');
+async function cancelAllAppointments() {
+  if (!confirm('Are you sure you want to cancel all your appointments? This action cannot be undone.')) return;
+
+  try {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    console.log('[appointments] cancelAllAppointments for:', { email: currentUser?.email, id: currentUser?.id });
+
+    const { error } = await window.supabase
+      .from('appointments')
+      .delete()
+      .eq('email', currentUser.email);
+
+    if (error) {
+      console.error('[appointments] cancelAllAppointments delete error:', error);
+      throw error;
+    }
+
+    await displayAppointments();
+    if (document.getElementById('adminAllAppointmentsBody')) await loadAllAppointments();
+    if (document.getElementById('adminScheduleBody')) adminLoadDashboard();
+    if (document.getElementById('dentistTotalAppointments')) dentistLoadDashboard();
+
+    alert('All appointments cancelled successfully!');
+  } catch (err) {
+    console.error('[appointments] cancelAllAppointments failed:', err);
+    alert('Failed to cancel appointments. Check console for details.');
+  }
 }
-}
+
 
 // ===== UTILITY FUNCTIONS =====
 
@@ -1511,79 +1591,54 @@ localStorage.setItem('users', JSON.stringify(users));
 }
 
 
-// Load appointments from localStorage
+// ===== APPOINTMENTS: Supabase is the single source of truth =====
+// The UI no longer reads/writes appointments from localStorage.
+// Rendering is driven by Supabase selects.
 function loadAppointments() {
-if (!localStorage.getItem('appointments')) {
-localStorage.setItem('appointments', JSON.stringify([]));
+  // no-op (legacy compatibility)
 }
+
+
+async function supabaseLoadAndRenderAppointments() {
+  console.log('[appointments] fetching from Supabase...');
+  await startAppointmentsRealtime();
+
+  // Admin/patient UIs render from these functions.
+  if (document.getElementById('appointmentsList')) {
+    await displayAppointments();
+  }
+  if (document.getElementById('recordsList')) {
+    renderRecords();
+  }
+  if (document.getElementById('adminAllAppointmentsBody')) {
+    await loadAllAppointments();
+  }
+  if (document.getElementById('adminScheduleBody')) {
+    adminLoadDashboard();
+  }
+  if (document.getElementById('dentistTotalAppointments')) {
+    dentistLoadDashboard();
+  }
 }
+
+function ensureAppointmentsRealtime() {
+  try {
+    // Fire and forget.
+    startAppointmentsRealtime().catch((e) => console.error('[appointments] realtime start failed', e));
+  } catch (e) {
+    console.error('[appointments] ensure realtime failed', e);
+  }
+}
+
+
 
 
 function loadAdminPageData() {
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const users = JSON.parse(localStorage.getItem('users') || '[]');
-const totalAppointments = appointments.length;
-const confirmedBookings = appointments.filter(apt => apt.status === 'Confirmed').length;
-const pendingRequests = appointments.filter(apt => apt.status === 'Pending').length;
-const dentistOnDuty = 'Dr. Estes';
-
-document.getElementById('adminTotalAppointments').textContent = totalAppointments;
-document.getElementById('adminConfirmedBookings').textContent = confirmedBookings;
-document.getElementById('adminPendingRequests').textContent = pendingRequests;
-document.getElementById('adminDentistOnDuty').textContent = dentistOnDuty;
-document.getElementById('adminTodayDate').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-
-const scheduleBody = document.getElementById('adminScheduleBody');
-if (scheduleBody) {
-if (appointments.length === 0) {
-scheduleBody.innerHTML = '<tr><td colspan="6">No appointments scheduled.</td></tr>';
-} else {
-scheduleBody.innerHTML = appointments.slice(0, 8).map(apt => `
-               <tr>
-                   <td>${apt.time}</td>
-                   <td>${apt.userName}</td>
-                   <td>${apt.dentist}</td>
-                   <td>${escapeHtml(apt.service)}</td>
-                   <td>${apt.status}</td>
-                   <td><button class="btn-secondary small" onclick="alert('Open appointment details');">Details</button></td>
-               </tr>
-           `).join('');
-}
+  // Legacy helper (now handled by Supabase-based adminLoadDashboard).
+  // Kept to avoid breaking any onclick references.
+  adminLoadDashboard();
 }
 
-const pendingList = document.getElementById('adminPendingList');
-if (pendingList) {
-const pendingItems = appointments.filter(apt => apt.status === 'Pending');
-if (pendingItems.length === 0) {
-pendingList.innerHTML = '<div class="pending-item"><div><strong>No pending requests</strong><p>You have no pending bookings at the moment.</p></div></div>';
-} else {
-pendingList.innerHTML = pendingItems.map(apt => `
-               <div class="pending-item">
-                   <div>
-                       <strong>${apt.userName}</strong>
-                       <p>${escapeHtml(apt.service)} on ${new Date(apt.date).toLocaleDateString()}</p>
-                   </div>
-                   <div>
-                       <button class="btn-secondary small">View Request</button>
-                       <button class="btn-submit small">Approve</button>
-                       <button class="btn-cancel small">Remove</button>
-                   </div>
-               </div>
-           `).join('');
-}
-}
-
-const activityFeed = document.getElementById('adminPatientFeed');
-if (activityFeed) {
-const latestUsers = users.slice(-3).reverse();
-activityFeed.innerHTML = latestUsers.map(user => `
-           <div class="activity-item">
-               <strong>${user.name}</strong>
-               <p>${user.provider ? 'Joined using ' + user.provider : 'Registered an account'}</p>
-           </div>
-       `).join('');
-}
-}
 
 // ===== PASSWORD TOGGLE FUNCTIONS =====
 
@@ -1857,24 +1912,41 @@ localStorage.removeItem('verificationExpiry');
 
 // ===== NOTIFICATIONS =====
 // Show notification modal and populate list
-function showNotifications() {
-const modal = document.getElementById('notificationModal');
-const list = document.getElementById('notificationList');
-if (list) {
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-if (appointments.length === 0) {
-list.innerHTML = '<p>No new notifications</p>';
-} else {
-const items = appointments.slice(-8).reverse().map(a => `
-               <div class="notification-item">
-                   <strong>${a.userName}</strong>
-                   <div style="font-size:13px;color:#666;">${a.service} — ${a.date} ${a.time}</div>
-               </div>
-           `).join('');
-list.innerHTML = items;
-}
-}
-if (modal) modal.style.display = 'block';
+async function showNotifications() {
+  const modal = document.getElementById('notificationModal');
+  const list = document.getElementById('notificationList');
+  if (!list) {
+    if (modal) modal.style.display = 'block';
+    return;
+  }
+
+  try {
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(8);
+
+    if (error) throw error;
+
+    const appointments = data || [];
+    if (appointments.length === 0) {
+      list.innerHTML = '<p>No new notifications</p>';
+    } else {
+      const items = appointments.map(a => `
+        <div class="notification-item">
+          <strong>${escapeHtml(a.userName || '')}</strong>
+          <div style="font-size:13px;color:#666;">${escapeHtml(a.service || '')} — ${escapeHtml(a.appointment_date || a.date || '')} ${escapeHtml(a.appointment_time || a.time || '')}</div>
+        </div>
+      `).join('');
+      list.innerHTML = items;
+    }
+  } catch (err) {
+    console.error('[admin] showNotifications failed:', err);
+    list.innerHTML = '<p>Failed to load notifications.</p>';
+  }
+
+  if (modal) modal.style.display = 'block';
 }
 
 // Close notification modal
@@ -2120,29 +2192,48 @@ loadDentistNotes();
 }
 });
 
-function dentistLoadDashboard() {
-const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-if (!currentUser) return;
+async function dentistLoadDashboard() {
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  if (!currentUser) return;
 
-const dentistAppointments = appointments.filter(apt => isAssignedDentist(apt.dentist, currentUser.name));
+  try {
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-const confirmedToday = dentistAppointments.filter(apt => {
-const aptDate = new Date(apt.date);
-const today = new Date();
-return apt.status === 'Confirmed' && aptDate.toDateString() === today.toDateString();
-}).length;
-const pendingApprovals = dentistAppointments.filter(apt => apt.status === 'Pending').length;
-const upcomingPatients = dentistAppointments.filter(apt => {
-const aptDate = new Date(apt.date);
-return aptDate >= new Date();
-}).length;
+    if (error) throw error;
 
-document.getElementById('dentistTotalAppointments').textContent = dentistAppointments.length;
-document.getElementById('dentistConfirmedToday').textContent = confirmedToday;
-document.getElementById('dentistPendingApprovals').textContent = pendingApprovals;
-document.getElementById('dentistUpcomingPatients').textContent = upcomingPatients;
+    const appointments = data || [];
+    const dentistAppointments = appointments.filter(apt => isAssignedDentist(apt.dentist, currentUser.name));
+
+    const today = new Date();
+    const confirmedToday = dentistAppointments.filter(apt => {
+      const aptDate = new Date(apt.appointment_date || apt.date);
+      return apt.status === 'Confirmed' && aptDate.toDateString() === today.toDateString();
+    }).length;
+
+    const pendingApprovals = dentistAppointments.filter(apt => apt.status === 'Pending').length;
+
+    const upcomingPatients = dentistAppointments.filter(apt => {
+      const aptDate = new Date(apt.appointment_date || apt.date);
+      return aptDate >= new Date();
+    }).length;
+
+    const totalEl = document.getElementById('dentistTotalAppointments');
+    const confirmedEl = document.getElementById('dentistConfirmedToday');
+    const pendingEl = document.getElementById('dentistPendingApprovals');
+    const upcomingEl = document.getElementById('dentistUpcomingPatients');
+
+    if (totalEl) totalEl.textContent = dentistAppointments.length;
+    if (confirmedEl) confirmedEl.textContent = confirmedToday;
+    if (pendingEl) pendingEl.textContent = pendingApprovals;
+    if (upcomingEl) upcomingEl.textContent = upcomingPatients;
+  } catch (err) {
+    console.error('[dentist] dentistLoadDashboard failed:', err);
+  }
 }
+
 
 function setupDentistNavigation() {
 const navLinks = document.querySelectorAll('.admin-nav a[data-tab]');
@@ -2186,113 +2277,165 @@ const normalizedCurrent = currentName.toLowerCase();
 return normalizedAssigned === normalizedCurrent || normalizedAssigned.includes(normalizedCurrent) || normalizedCurrent.includes(normalizedAssigned);
 }
 
-function loadDentistAppointments(searchTerm = '') {
-const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-if (!currentUser) return;
+async function loadDentistAppointments(searchTerm = '') {
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  if (!currentUser) return;
 
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const statusFilter = document.getElementById('dentistAppointmentStatusFilter')?.value || '';
-const searchValue = searchTerm || document.getElementById('dentistAppointmentsSearch')?.value.trim().toLowerCase() || '';
+  const statusFilter = document.getElementById('dentistAppointmentStatusFilter')?.value || '';
+  const searchValue = searchTerm || document.getElementById('dentistAppointmentsSearch')?.value.trim().toLowerCase() || '';
 
-const filtered = appointments.filter(apt => {
-if (!isAssignedDentist(apt.dentist, currentUser.name)) return false;
-if (statusFilter && apt.status !== statusFilter) return false;
-if (!searchValue) return true;
-const term = searchValue.toLowerCase();
-return (apt.userName || '').toLowerCase().includes(term) ||
-(apt.service || '').toLowerCase().includes(term) ||
-(apt.status || '').toLowerCase().includes(term) ||
-(apt.date || '').toLowerCase().includes(term);
-});
+  const body = document.getElementById('dentistAppointmentsBody');
+  if (!body) return;
 
-const body = document.getElementById('dentistAppointmentsBody');
-if (!body) return;
-if (filtered.length === 0) {
-body.innerHTML = '<tr><td colspan="6">No appointments match your filters.</td></tr>';
-return;
+  try {
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const appointments = data || [];
+
+    const filtered = appointments.filter(apt => {
+      const apptDentist = apt.dentist || '';
+      if (!isAssignedDentist(apptDentist, currentUser.name)) return false;
+      if (statusFilter && apt.status !== statusFilter) return false;
+      if (!searchValue) return true;
+
+      const term = searchValue.toLowerCase();
+      return (apt.userName || '').toLowerCase().includes(term) ||
+        (apt.service || '').toLowerCase().includes(term) ||
+        (apt.status || '').toLowerCase().includes(term) ||
+        (apt.appointment_date || apt.date || '').toLowerCase().includes(term);
+    });
+
+    if (filtered.length === 0) {
+      body.innerHTML = '<tr><td colspan="6">No appointments match your filters.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = filtered.map(apt => `
+      <tr>
+        <td>${apt.appointment_date || apt.date || 'N/A'}</td>
+        <td>${apt.appointment_time || apt.time || 'N/A'}</td>
+        <td>${apt.userName || apt.name || 'Unknown'}</td>
+        <td>${escapeHtml(apt.service) || 'N/A'}</td>
+        <td>
+          <select class="status-select" onchange="updateAppointmentStatus(${apt.id}, this.value)">
+            <option value="Pending" ${apt.status === 'Pending' ? 'selected' : ''}>Pending</option>
+            <option value="Confirmed" ${apt.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
+            <option value="Canceled" ${apt.status === 'Canceled' ? 'selected' : ''}>Canceled</option>
+            <option value="Reschedule" ${apt.status === 'Reschedule' ? 'selected' : ''}>Reschedule</option>
+            <option value="Finished" ${apt.status === 'Finished' ? 'selected' : ''}>Finished</option>
+          </select>
+        </td>
+        <td><button class="btn-secondary small" onclick="alert('Open notes for ${apt.userName || 'patient'}');">Notes</button></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('[dentist] loadDentistAppointments failed:', err);
+    body.innerHTML = '<tr><td colspan="6">Failed to load appointments.</td></tr>';
+  }
 }
 
-body.innerHTML = filtered.map(apt => `
-       <tr>
-           <td>${apt.date || 'N/A'}</td>
-           <td>${apt.time || 'N/A'}</td>
-           <td>${apt.userName || 'Unknown'}</td>
-           <td>${escapeHtml(apt.service) || 'N/A'}</td>
-           <td>
-               <select class="status-select" onchange="updateAppointmentStatus(${apt.id}, this.value)">
-                   <option value="Pending" ${apt.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                   <option value="Confirmed" ${apt.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
-                   <option value="Canceled" ${apt.status === 'Canceled' ? 'selected' : ''}>Canceled</option>
-                   <option value="Reschedule" ${apt.status === 'Reschedule' ? 'selected' : ''}>Reschedule</option>
-                   <option value="Finished" ${apt.status === 'Finished' ? 'selected' : ''}>Finished</option>
-               </select>
-           </td>
-           <td><button class="btn-secondary small" onclick="alert('Open notes for ${apt.userName || 'patient'}');">Notes</button></td>
-       </tr>
-   `).join('');
+
+async function loadDentistPatients(searchTerm = '') {
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  if (!currentUser) return;
+
+  const searchValue = searchTerm || document.getElementById('dentistPatientsSearch')?.value.trim().toLowerCase() || '';
+  const body = document.getElementById('dentistPatientsBody');
+  if (!body) return;
+
+  try {
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const appointments = data || [];
+    const patients = [];
+
+    appointments.forEach(apt => {
+      if (!isAssignedDentist(apt.dentist, currentUser.name)) return;
+      const key = `${apt.userName || ''}|${apt.appointment_date || apt.date || ''}|${apt.service || ''}`;
+      if (!patients.some(p => p.key === key)) {
+        patients.push({
+          key,
+          name: apt.userName || '',
+          date: apt.appointment_date || apt.date || '',
+          service: apt.service || '',
+          status: apt.status || '',
+        });
+      }
+    });
+
+    const filtered = patients.filter(item => {
+      if (!searchValue) return true;
+      return item.name.toLowerCase().includes(searchValue) ||
+        item.service.toLowerCase().includes(searchValue) ||
+        (item.status || '').toLowerCase().includes(searchValue);
+    });
+
+    if (filtered.length === 0) {
+      body.innerHTML = '<tr><td colspan="4">No patients found.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = filtered.map(item => `
+      <tr>
+        <td>${item.name}</td>
+        <td>${item.date}</td>
+        <td>${item.service}</td>
+        <td>${item.status}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('[dentist] loadDentistPatients failed:', err);
+    body.innerHTML = '<tr><td colspan="4">Failed to load patients.</td></tr>';
+  }
 }
 
-function loadDentistPatients(searchTerm = '') {
-const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-if (!currentUser) return;
 
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const searchValue = searchTerm || document.getElementById('dentistPatientsSearch')?.value.trim().toLowerCase() || '';
-const patients = [];
+async function loadDentistNotes() {
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  if (!currentUser) return;
 
-appointments.forEach(apt => {
-if (!isAssignedDentist(apt.dentist, currentUser.name)) return;
-const patientKey = `${apt.userName}|${apt.date}|${apt.service}`;
-if (!patients.some(item => item.key === patientKey)) {
-patients.push({ key: patientKey, name: apt.userName, date: apt.date, service: apt.service, status: apt.status });
-}
-});
+  const body = document.getElementById('dentistNotesBody');
+  if (!body) return;
 
-const filtered = patients.filter(item => {
-if (!searchValue) return true;
-return item.name.toLowerCase().includes(searchValue) || item.service.toLowerCase().includes(searchValue) || (item.status || '').toLowerCase().includes(searchValue);
-});
+  try {
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-const body = document.getElementById('dentistPatientsBody');
-if (!body) return;
-if (filtered.length === 0) {
-body.innerHTML = '<tr><td colspan="4">No patients found.</td></tr>';
-return;
-}
+    if (error) throw error;
 
-body.innerHTML = filtered.map(item => `
-       <tr>
-           <td>${item.name}</td>
-           <td>${item.date}</td>
-           <td>${item.service}</td>
-           <td>${item.status}</td>
-       </tr>
-   `).join('');
-}
+    const notes = (data || []).filter(apt => isAssignedDentist(apt.dentist, currentUser.name) && apt.dentistNotes);
 
-function loadDentistNotes() {
-const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-if (!currentUser) return;
+    if (notes.length === 0) {
+      body.innerHTML = '<tr><td colspan="4">No treatment notes written yet.</td></tr>';
+      return;
+    }
 
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const notes = appointments.filter(apt => isAssignedDentist(apt.dentist, currentUser.name) && apt.dentistNotes);
-
-const body = document.getElementById('dentistNotesBody');
-if (!body) return;
-if (notes.length === 0) {
-body.innerHTML = '<tr><td colspan="4">No treatment notes written yet.</td></tr>';
-return;
+    body.innerHTML = notes.map(item => `
+      <tr>
+        <td>${item.userName || 'Unknown'}</td>
+        <td>${item.appointment_date || item.date || ''}</td>
+        <td>${item.service || ''}</td>
+        <td>${item.dentistNotes || ''}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('[dentist] loadDentistNotes failed:', err);
+    body.innerHTML = '<tr><td colspan="4">Failed to load notes.</td></tr>';
+  }
 }
 
-body.innerHTML = notes.map(item => `
-       <tr>
-           <td>${item.userName || 'Unknown'}</td>
-           <td>${item.date}</td>
-           <td>${item.service}</td>
-           <td>${item.dentistNotes}</td>
-       </tr>
-   `).join('');
-}
 
 function dentistToggleNotes() {
     loadDentistNotes();
@@ -2372,65 +2515,74 @@ dentistLoadDashboard();
 }
 
 // ===== SAFE ADMIN DASHBOARD (RENAMED to avoid conflict) =====
-function adminLoadDashboard(searchTerm = '') {
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const users = JSON.parse(localStorage.getItem('users') || '[]');
+async function adminLoadDashboard(searchTerm = '') {
+  try {
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const today = new Date();
+    const rangeFilter = document.getElementById('adminDashboardRangeFilter')?.value || 'today';
+    const statusFilter = document.getElementById('adminDashboardStatusFilter')?.value || '';
 
-const today = new Date();
-const rangeFilter = document.getElementById('adminDashboardRangeFilter')?.value || 'today';
-const statusFilter = document.getElementById('adminDashboardStatusFilter')?.value || '';
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-const todayAppointments = appointments.filter(apt => {
-const appointmentDate = new Date(apt.date);
-if (isNaN(appointmentDate)) return false;
-const normalizedStatus = (apt.status || '').trim();
-if (statusFilter && normalizedStatus !== statusFilter) return false;
-switch (rangeFilter) {
-case 'week': {
-const startOfWeek = new Date(today);
-startOfWeek.setDate(today.getDate() - today.getDay());
-startOfWeek.setHours(0, 0, 0, 0);
-const endOfWeek = new Date(startOfWeek);
-endOfWeek.setDate(startOfWeek.getDate() + 6);
-endOfWeek.setHours(23, 59, 59, 999);
-return appointmentDate >= startOfWeek && appointmentDate <= endOfWeek;
+    if (error) throw error;
+    const appointments = data || [];
+
+    const todayAppointments = appointments.filter(apt => {
+      const appointmentDate = new Date(apt.appointment_date || apt.date);
+      if (isNaN(appointmentDate)) return false;
+      const normalizedStatus = (apt.status || '').trim();
+      if (statusFilter && normalizedStatus !== statusFilter) return false;
+      switch (rangeFilter) {
+        case 'week': {
+          const startOfWeek = new Date(today);
+          startOfWeek.setDate(today.getDate() - today.getDay());
+          startOfWeek.setHours(0, 0, 0, 0);
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          endOfWeek.setHours(23, 59, 59, 999);
+          return appointmentDate >= startOfWeek && appointmentDate <= endOfWeek;
+        }
+        case 'month':
+          return appointmentDate.getMonth() === today.getMonth() && appointmentDate.getFullYear() === today.getFullYear();
+        default:
+          return appointmentDate.toLocaleDateString('en-CA') === today.toLocaleDateString('en-CA');
+      }
+    });
+
+    const rangeLabel = rangeFilter === 'today'
+      ? today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : rangeFilter === 'week'
+        ? (() => {
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+          })()
+        : today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const overviewLabel = document.getElementById('adminTodayDate');
+    if (overviewLabel) overviewLabel.textContent = rangeLabel;
+
+    const totalAppointments = todayAppointments.length;
+    const confirmedBookings = todayAppointments.filter(a => a.status === 'Confirmed').length;
+    const pendingRequests = appointments.filter(a => a.status === 'Pending').length;
+
+    document.getElementById('adminTotalAppointments').textContent = totalAppointments;
+    document.getElementById('adminConfirmedBookings').textContent = confirmedBookings;
+    document.getElementById('adminPendingRequests').textContent = pendingRequests;
+
+    updateTodaySchedule(todayAppointments, searchTerm);
+    updatePendingRequests(appointments.filter(a => a.status === 'Pending'), searchTerm);
+    updateActivityFeed(users, appointments);
+  } catch (err) {
+    console.error('[admin] adminLoadDashboard failed:', err);
+  }
 }
-case 'month':
-return appointmentDate.getMonth() === today.getMonth() && appointmentDate.getFullYear() === today.getFullYear();
-default:
-return appointmentDate.toLocaleDateString('en-CA') === today.toLocaleDateString('en-CA');
-}
-});
 
-const rangeLabel = rangeFilter === 'today'
-? today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-: rangeFilter === 'week'
-? (() => {
-const startOfWeek = new Date(today);
-startOfWeek.setDate(today.getDate() - today.getDay());
-const endOfWeek = new Date(startOfWeek);
-endOfWeek.setDate(startOfWeek.getDate() + 6);
-return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-})()
-: today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-const overviewLabel = document.getElementById('adminTodayDate');
-if (overviewLabel) {
-overviewLabel.textContent = rangeLabel;
-}
-
-const totalAppointments = todayAppointments.length;
-const confirmedBookings = todayAppointments.filter(a => a.status === 'Confirmed').length;
-const pendingRequests = appointments.filter(a => a.status === 'Pending').length;
-
-// Stats
-document.getElementById('adminTotalAppointments').textContent = totalAppointments;
-document.getElementById('adminConfirmedBookings').textContent = confirmedBookings;
-document.getElementById('adminPendingRequests').textContent = pendingRequests;
-
-updateTodaySchedule(todayAppointments, searchTerm);
-updatePendingRequests(appointments.filter(a => a.status === 'Pending'), searchTerm);
-updateActivityFeed(users, appointments);
-}
 
 
 // ===== NAVIGATION =====
@@ -2674,75 +2826,96 @@ feed.innerHTML = recent.map(u => `
 
 
 // ===== APPOINTMENTS =====
-function loadAllAppointments(searchTerm = '') {
-updateAppointmentsLabel();
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const tbody = document.getElementById('adminAllAppointmentsBody');
-if (!tbody) return;
+async function loadAllAppointments(searchTerm = '') {
+  updateAppointmentsLabel();
+  const tbody = document.getElementById('adminAllAppointmentsBody');
+  if (!tbody) return;
 
-const term = (searchTerm || getSearchValue('adminAppointmentsSearch')).trim().toLowerCase();
-const statusFilter = (document.getElementById('adminAppointmentStatusFilter')?.value || '').toLowerCase();
-const monthFilter = (document.getElementById('adminMonthSelect')?.value || '').toLowerCase();
-const yearFilter = (document.getElementById('adminYearSelect')?.value || '').trim();
+  try {
+    const term = (searchTerm || getSearchValue('adminAppointmentsSearch')).trim().toLowerCase();
+    const statusFilter = (document.getElementById('adminAppointmentStatusFilter')?.value || '').toLowerCase();
+    const monthFilter = (document.getElementById('adminMonthSelect')?.value || '').toLowerCase();
+    const yearFilter = (document.getElementById('adminYearSelect')?.value || '').trim();
 
-const filtered = appointments.filter(a => {
-const apptDate = a.date || '';
-const appointmentDate = apptDate ? new Date(apptDate) : null;
-const patientName = (a.userName || a.user || '').toLowerCase();
-const dentist = (a.dentist || '').toLowerCase();
-const service = (a.service || '').toLowerCase();
-const status = (a.status || '').toLowerCase();
-const apptId = a.id ? ('A' + String(a.id).slice(-4)).toLowerCase() : '';
+    console.log('[admin] loadAllAppointments: selecting from Supabase...');
 
-if (statusFilter && status !== statusFilter) return false;
-if (monthFilter) {
-const monthName = appointmentDate ? appointmentDate.toLocaleString('en-US', { month: 'long' }).toLowerCase() : '';
-if (monthName !== monthFilter) return false;
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[admin] loadAllAppointments supabase error:', error);
+      throw error;
+    }
+
+    const appointments = data || [];
+
+    const filtered = appointments.filter(a => {
+      // Support both old and new column names.
+      const apptDateRaw = a.date || a.appointment_date || '';
+      const appointmentDate = apptDateRaw ? new Date(apptDateRaw) : null;
+
+      const patientName = (a.userName || a.name || a.user || '').toLowerCase();
+      const dentist = (a.dentist || '').toLowerCase();
+      const service = (a.service || '').toLowerCase();
+      const status = (a.status || '').toLowerCase();
+      const apptId = a.id ? ('A' + String(a.id).slice(-4)).toLowerCase() : '';
+
+      if (statusFilter && status !== statusFilter) return false;
+      if (monthFilter) {
+        const monthName = appointmentDate ? appointmentDate.toLocaleString('en-US', { month: 'long' }).toLowerCase() : '';
+        if (monthName !== monthFilter) return false;
+      }
+      if (yearFilter && appointmentDate) {
+        if (appointmentDate.getFullYear() !== Number(yearFilter)) return false;
+      }
+
+      if (!term) return true;
+      return (
+        patientName.includes(term) ||
+        dentist.includes(term) ||
+        service.includes(term) ||
+        status.includes(term) ||
+        apptId.includes(term) ||
+        String(apptDateRaw).toLowerCase().includes(term)
+      );
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8">No appointments match this filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map((a, idx) => {
+      const apptId = a.id ? ('A' + String(a.id).slice(-4)) : ('A' + String(1000 + idx));
+      const patientId = a.userId ? ('P' + String(a.userId).slice(-3)) : 'P000';
+      const apptDate = a.date || a.appointment_date || '';
+      const dentist = a.dentist || '';
+      const service = a.service || '';
+      const status = a.status || '';
+      const patientName = a.userName || a.name || a.user || 'Unknown';
+      const statusClass = status.toLowerCase().replace(/\s+/g, '-') || 'pending';
+
+      return `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${apptId}</td>
+          <td>${apptDate}</td>
+          <td>${patientId}</td>
+          <td>${patientName}</td>
+          <td>${dentist}</td>
+          <td>${service}</td>
+          <td><span class="status-badge status-badge--${statusClass}">${String(status).toUpperCase()}</span></td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('[admin] loadAllAppointments failed:', err);
+    tbody.innerHTML = '<tr><td colspan="8">Failed to load appointments.</td></tr>';
+  }
 }
-if (yearFilter && appointmentDate) {
-if (appointmentDate.getFullYear() !== Number(yearFilter)) return false;
-}
 
-if (!term) return true;
-return (
-patientName.includes(term) ||
-dentist.includes(term) ||
-service.includes(term) ||
-status.includes(term) ||
-apptId.includes(term) ||
-apptDate.toLowerCase().includes(term)
-);
-});
-
-if (filtered.length === 0) {
-tbody.innerHTML = '<tr><td colspan="8">No appointments match this filter.</td></tr>';
-return;
-}
-
-tbody.innerHTML = filtered.map((a, idx) => {
-const apptId = a.id ? ('A' + String(a.id).slice(-4)) : ('A' + String(1000 + idx));
-const patientId = a.userId ? ('P' + String(a.userId).slice(-3)) : 'P000';
-const apptDate = a.date || '';
-const dentist = a.dentist || '';
-const service = a.service || '';
-const status = a.status || '';
-const patientName = a.userName || a.user || 'Unknown';
-const statusClass = status.toLowerCase().replace(/\s+/g, '-') || 'pending';
-
-return `
-       <tr>
-           <td>${idx + 1}</td>
-           <td>${apptId}</td>
-           <td>${apptDate}</td>
-           <td>${patientId}</td>
-           <td>${patientName}</td>
-           <td>${dentist}</td>
-           <td>${service}</td>
-           <td><span class="status-badge status-badge--${statusClass}">${status.toUpperCase()}</span></td>
-       </tr>
-   `;
-}).join('');
-}
 
 function updateAppointmentsLabel() {
 const monthValue = document.getElementById('adminMonthSelect')?.value || '';
@@ -3258,36 +3431,50 @@ tbody.innerHTML = services.map(s => `
 }
 
 // ===== PAYMENTS =====
-function loadPayments(searchTerm = '') {
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-let payments = appointments.map((a, idx) => ({
-tx: `T${String(idx + 1).padStart(4, '0')}`,
-patient: a.userName || 'Guest',
-service: a.service || 'Unknown',
-time: a.time || '',
-amount: getPriceForService(a.service),
-method: a.status === 'Confirmed' ? 'Card' : 'Cash',
-status: a.status === 'Confirmed' ? 'Paid' : 'Pending'
-}));
+async function loadPayments(searchTerm = '') {
+  // Payments are derived from appointment status in this demo.
+  // We now derive them from Supabase.
+  try {
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-localStorage.setItem('payments', JSON.stringify(payments));
+    if (error) throw error;
 
-const term = (searchTerm || getSearchValue('adminPaymentsSearch')).trim().toLowerCase();
-if (term) {
-payments = payments.filter(p => {
-return [p.tx, p.patient, p.service, p.time, p.amount, p.method, p.status]
-.filter(Boolean)
-.some(value => value.toLowerCase().includes(term));
-});
+    const appointments = data || [];
+    let payments = appointments.map((a, idx) => ({
+      tx: `T${String(idx + 1).padStart(4, '0')}`,
+      patient: a.userName || a.name || 'Guest',
+      service: a.service || 'Unknown',
+      time: a.appointment_time || a.time || '',
+      amount: getPriceForService(a.service),
+      method: a.status === 'Confirmed' ? 'Card' : 'Cash',
+      status: a.status === 'Confirmed' ? 'Paid' : 'Pending',
+    }));
+
+    const term = (searchTerm || getSearchValue('adminPaymentsSearch')).trim().toLowerCase();
+    if (term) {
+      payments = payments.filter(p =>
+        [p.tx, p.patient, p.service, p.time, p.amount, p.method, p.status]
+          .filter(Boolean)
+          .some(v => String(v).toLowerCase().includes(term))
+      );
+    }
+
+    const paymentsStatusFilter = (document.getElementById('adminPaymentsStatusFilter')?.value || '').toLowerCase();
+    if (paymentsStatusFilter) {
+      payments = payments.filter(p => (p.status || '').toLowerCase() === paymentsStatusFilter);
+    }
+
+    renderPayments(payments);
+  } catch (err) {
+    console.error('[admin] loadPayments failed:', err);
+    const tbody = document.getElementById('adminPaymentsBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7">Failed to load payments.</td></tr>';
+  }
 }
 
-const paymentsStatusFilter = (document.getElementById('adminPaymentsStatusFilter')?.value || '').toLowerCase();
-if (paymentsStatusFilter) {
-payments = payments.filter(p => (p.status || '').toLowerCase() === paymentsStatusFilter);
-}
-
-renderPayments(payments);
-}
 
 function getPriceForService(serviceName) {
 const priceMap = {
@@ -3466,25 +3653,35 @@ loadPatients();
 alert('Patient data refreshed.');
 }
 
-function approveAllPending() {
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-let changed = false;
-const updated = appointments.map(a => {
-if (a.status === 'Pending') {
-changed = true;
-return { ...a, status: 'Confirmed' };
+async function approveAllPending() {
+  try {
+    console.log('[admin] approveAllPending');
+
+    // Approve all pending rows (note: this will confirm every Pending appointment).
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .update({ status: 'Confirmed' })
+      .eq('status', 'Pending')
+      .select();
+
+    if (error) {
+      console.error('[admin] approveAllPending error:', error);
+      throw error;
+    }
+
+    await adminLoadDashboard();
+    await loadAllAppointments();
+    if (document.getElementById('dentistTotalAppointments')) dentistLoadDashboard();
+    if (document.getElementById('appointmentsList')) displayAppointments();
+
+    const count = (data || []).length;
+    alert(count ? `Approved ${count} pending appointments.` : 'No pending appointments to approve.');
+  } catch (err) {
+    console.error('[admin] approveAllPending failed:', err);
+    alert('Failed to approve pending appointments. Check console for details.');
+  }
 }
-return a;
-});
-if (changed) {
-localStorage.setItem('appointments', JSON.stringify(updated));
-adminLoadDashboard();
-loadAllAppointments();
-alert('All pending appointments approved.');
-} else {
-alert('No pending appointments to approve.');
-}
-}
+
 
 // ===== CALENDAR =====
 function initializeCalendar() {
@@ -3567,12 +3764,10 @@ const grid = document.getElementById('calendarGrid');
 if (!header || !grid) return;
 
 const today = new Date();
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]')
-.map(a => ({
-...a,
-dateObj: a.date ? new Date(a.date) : null
-}))
-.filter(a => a.dateObj instanceof Date && !isNaN(a.dateObj));
+const appointments = [];
+// Calendar is legacy/localStorage-based in this file. DB-driven calendar can be added later.
+// Keeping empty array prevents wrong cross-device results.
+
 
 const firstOfMonth = new Date(calendarYear, calendarMonth, 1);
 const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
@@ -3623,68 +3818,192 @@ loadAllAppointments(dateISO);
 
 
 // ===== ACTIONS =====
-function viewAppointmentDetails(id) {
-const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const a = appointments.find(x => x.id == id);
-if (a) alert(JSON.stringify(a, null, 2));
-}
+async function viewAppointmentDetails(id) {
+  try {
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
 
-function toggleStatus(id, status) {
-let appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const a = appointments.find(x => x.id == id);
-if (a) {
-a.status = status === 'Confirmed' ? 'Pending' : 'Confirmed';
-localStorage.setItem('appointments', JSON.stringify(appointments));
-adminLoadDashboard();
-}
-}
-
-function approveAppointment(id) {
-let appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const a = appointments.find(x => x.id == id);
-if (a) {
-    a.status = 'Confirmed';
-    localStorage.setItem('appointments', JSON.stringify(appointments));
-    adminLoadDashboard();
-}
-}
-
-function updateAppointmentStatus(id, status) {
-let appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
-const a = appointments.find(x => x.id == id);
-if (a) {
-    a.status = status;
-    localStorage.setItem('appointments', JSON.stringify(appointments));
-    loadDentistAppointments();
-    dentistLoadDashboard();
-}
-}
-
-
-// ===== Supabase integration (disabled by default) =====
-// NOTE: This project uses localStorage for auth/appointments.
-// The code below is only enabled if you explicitly provide a global `window.supabase`.
-// Keeping it guarded prevents runtime crashes that break login/register.
-if (typeof window !== 'undefined' && window.supabase) {
-  async function createAppointment(data) {
-    try {
-      const { error } = await window.supabase
-        .from("appointments")
-        .insert([data]);
-
-      if (error) {
-        console.error("Insert Error:", error);
-        return;
-      }
-
-      console.log("Appointment created successfully");
-    } catch (err) {
-      console.error("Unexpected Error:", err);
+    if (error) throw error;
+    if (!data) {
+      alert('Appointment not found in database.');
+      return;
     }
+    alert(JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error('[admin] viewAppointmentDetails failed:', err);
+    alert('Failed to load appointment details. Check console.');
+  }
+}
+
+
+async function toggleStatus(id, status) {
+  try {
+    const newStatus = status === 'Confirmed' ? 'Pending' : 'Confirmed';
+    console.log('[admin] toggleStatus:', { id, from: status, to: newStatus });
+
+    const { error } = await window.supabase
+      .from('appointments')
+      .update({ status: newStatus })
+      .eq('id', id);
+
+    if (error) {
+      console.error('[admin] toggleStatus update error:', error);
+      throw error;
+    }
+
+    adminLoadDashboard();
+    await loadAllAppointments();
+    if (document.getElementById('dentistTotalAppointments')) dentistLoadDashboard();
+  } catch (err) {
+    console.error('[admin] toggleStatus failed:', err);
+    alert('Failed to update appointment status. Check console for details.');
+  }
+}
+
+
+async function approveAppointment(id) {
+  try {
+    console.log('[admin] approveAppointment:', id);
+
+    const { error } = await window.supabase
+      .from('appointments')
+      .update({ status: 'Confirmed' })
+      .eq('id', id);
+
+    if (error) {
+      console.error('[admin] approveAppointment update error:', error);
+      throw error;
+    }
+
+    // Refresh admin + dentist + patient views.
+    adminLoadDashboard();
+    await loadAllAppointments();
+    if (document.getElementById('dentistTotalAppointments')) dentistLoadDashboard();
+    if (document.getElementById('appointmentsList')) displayAppointments();
+  } catch (err) {
+    console.error('[admin] approveAppointment failed:', err);
+    alert('Failed to approve appointment. Check console for details.');
+  }
+}
+
+
+async function updateAppointmentStatus(id, status) {
+  try {
+    console.log('[dentist] updateAppointmentStatus:', { id, status });
+
+    const { error } = await window.supabase
+      .from('appointments')
+      .update({ status })
+      .eq('id', id);
+
+    if (error) {
+      console.error('[dentist] updateAppointmentStatus error:', error);
+      throw error;
+    }
+
+    await loadDentistAppointments();
+    dentistLoadDashboard();
+    if (document.getElementById('adminAllAppointmentsBody')) await loadAllAppointments();
+    if (document.getElementById('appointmentsList')) await displayAppointments();
+  } catch (err) {
+    console.error('[dentist] updateAppointmentStatus failed:', err);
+    alert('Failed to update appointment status. Check console for details.');
+  }
+}
+
+
+
+// ===== Supabase integration for appointments =====
+// Supabase client is expected on window.supabase (bootstrapped via /supabase-browser.js)
+function getSupabaseOrNull() {
+  try {
+    if (typeof window === 'undefined') return null;
+    if (!window.supabase) return null;
+    return window.supabase;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function supabaseInsertAppointment(payload) {
+  const sb = getSupabaseOrNull();
+  if (!sb) {
+    throw new Error('Supabase client not ready. Check /supabase-browser.js and env vars.');
   }
 
-  // Optional: expose for debugging
-  window.createAppointment = createAppointment;
+  console.log('[supabase] inserting appointment:', payload);
+
+  const { data, error } = await sb
+    .from('appointments')
+    .insert([payload])
+    .select();
+
+  if (error) {
+    console.error('[supabase] insert error:', error);
+    throw error;
+  }
+
+  console.log('[supabase] insert result:', data);
+  return data;
 }
+
+async function supabaseSelectAppointments() {
+  const sb = getSupabaseOrNull();
+  if (!sb) {
+    throw new Error('Supabase client not ready. Check /supabase-browser.js and env vars.');
+  }
+
+  const { data, error } = await sb
+    .from('appointments')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[supabase] select error:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+function startAppointmentsRealtime() {
+  const sb = getSupabaseOrNull();
+  if (!sb) return;
+  if (window.__appointmentsRealtimeStarted) return;
+  window.__appointmentsRealtimeStarted = true;
+
+  console.log('[supabase] starting realtime subscription (appointments)');
+
+  const channel = sb
+    .channel('appointments-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'appointments',
+      },
+      (payload) => {
+        console.log('[supabase realtime]', payload);
+        // Refresh UI across admin + patient.
+        try {
+          if (document.getElementById('adminAllAppointmentsBody')) loadAllAppointments();
+          if (document.getElementById('appointmentsList')) displayAppointments();
+          if (document.getElementById('recordsList')) renderRecords();
+          if (document.getElementById('dentistTotalAppointments')) dentistLoadDashboard();
+          if (document.getElementById('dentistAppointmentsBody')) loadDentistAppointments();
+        } catch (e) {
+          console.error('[supabase realtime] refresh error:', e);
+        }
+      }
+    )
+    .subscribe();
+
+  window.__appointmentsRealtimeChannel = channel;
+}
+
 
 

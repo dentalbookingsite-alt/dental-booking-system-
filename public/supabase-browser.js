@@ -1,61 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 
-const runtimeEnv =
-  typeof import.meta !== 'undefined' && import.meta.env
-    ? import.meta.env
-    : {};
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+console.log('Supabase URL:', supabaseUrl);
+console.log('Supabase Key exists:', !!supabaseKey);
 
 let supabase = null;
-
 window.supabase = null;
 window.supabaseReady = false;
-window.__SUPABASE_BROWSER_STATUS__ = 'loading';
+window.__SUPABASE_BROWSER_STATUS__ = 'missing-env';
 
-async function resolveSupabaseEnv() {
-  const injectedEnv = window.__SUPABASE_ENV__ || {};
-
-  const url =
-    runtimeEnv.VITE_SUPABASE_URL ||
-    injectedEnv.url ||
-    '';
-  const anonKey =
-    runtimeEnv.VITE_SUPABASE_ANON_KEY ||
-    injectedEnv.anonKey ||
-    '';
-
-  if (!url || !anonKey) {
-    console.error('[supabase-browser] Missing Supabase environment variables.');
-    return { url: '', anonKey: '' };
-  }
-
-  return { url, anonKey };
-}
-
-async function initializeSupabase() {
-  const { url, anonKey } = await resolveSupabaseEnv();
-
-  if (!url || !anonKey) {
-    console.error('Supabase environment variables are missing.');
-    window.supabase = null;
-    window.supabaseReady = false;
-    window.__SUPABASE_BROWSER_STATUS__ = 'missing-env';
-    return;
-  }
-
-  supabase = createClient(url, anonKey, {
-    auth: {
-      persistSession: false,
-    },
-  });
-
+if (!supabaseUrl || !supabaseKey) {
+  console.error('[supabase-browser] Missing Supabase environment variables.');
+} else {
+  supabase = createClient(supabaseUrl, supabaseKey);
   window.supabase = supabase;
   window.supabaseReady = true;
   window.__SUPABASE_BROWSER_STATUS__ = 'ready';
-  console.log('Supabase initialized successfully.');
+  console.log('[supabase-browser] Supabase initialized.');
 }
 
-initializeSupabase();
-
 export default supabase;
-
-

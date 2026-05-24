@@ -913,7 +913,7 @@ async function renderDashboardSummary() {
       </div>
     `;
   } catch (err) {
-    console.error('Dashboard loading failed:', err);
+    console.error('Dashboard failed:', err);
     nextAppointmentStatus.textContent = 'Error';
     nextAppointmentCard.innerHTML = `
       <div class="summary-empty">
@@ -2349,7 +2349,7 @@ async function dentistLoadDashboard() {
     if (pendingEl) pendingEl.textContent = pendingApprovals;
     if (upcomingEl) upcomingEl.textContent = upcomingPatients;
   } catch (err) {
-    console.error('Dashboard loading failed:', err);
+    console.error('Dashboard failed:', err);
   }
 }
 
@@ -2724,7 +2724,7 @@ async function adminLoadDashboard(searchTerm = '') {
     updatePendingRequests(appointments.filter(a => a.status === 'Pending'), searchTerm);
     updateActivityFeed(users, appointments);
   } catch (err) {
-    console.error('Dashboard loading failed:', err);
+    console.error('Dashboard failed:', err);
   }
 }
 

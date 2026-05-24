@@ -1,22 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl =
-  process.env.VITE_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  (typeof window !== 'undefined' && window.__SUPABASE_ENV__?.url
-    ? window.__SUPABASE_ENV__.url
-    : '')
-
-const supabaseAnonKey =
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  (typeof window !== 'undefined' && window.__SUPABASE_ENV__?.anonKey
-    ? window.__SUPABASE_ENV__.anonKey
-    : '')
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    'Supabase environment variables are not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
+  throw new Error(
+    'Missing Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
   )
 }
 
@@ -39,7 +28,7 @@ export const signUp = async (email, password) => {
   }
 
   if (data.user) {
-    const profileResult = await supabase.from('profiles').upsert(
+    const { error: profileError } = await supabase.from('profiles').upsert(
       {
         id: data.user.id,
         email: data.user.email,
@@ -48,8 +37,8 @@ export const signUp = async (email, password) => {
       { onConflict: 'id' }
     )
 
-    if (profileResult.error) {
-      throw profileResult.error
+    if (profileError) {
+      throw profileError
     }
   }
 

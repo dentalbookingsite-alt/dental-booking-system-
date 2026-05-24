@@ -1112,6 +1112,40 @@ messageElement.style.display = 'none';
 
 // ===== BOOKING FUNCTIONS =====
 
+function buildAppointmentDateTime(dateStr, timeStr) {
+  if (!dateStr || !timeStr) {
+    return null;
+  }
+
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) {
+    return null;
+  }
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridiem = match[3].toUpperCase();
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  if (meridiem === 'PM' && hours < 12) {
+    hours += 12;
+  }
+
+  if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  const localDateTime = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+  if (Number.isNaN(localDateTime.getTime())) {
+    return null;
+  }
+
+  return localDateTime.toISOString();
+}
+
 // Handle booking (Supabase)
 async function handleBooking(e) {
   e.preventDefault();
@@ -1159,6 +1193,12 @@ async function handleBooking(e) {
       return;
     }
 
+    const appointmentDateTime = buildAppointmentDateTime(appointmentDate, appointmentTime);
+    if (!appointmentDateTime) {
+      showMessage('Invalid appointment time. Please choose a valid time.', 'error', 'bookingMessage');
+      return;
+    }
+
     // Slot conflict check (optional). We do not block perfectly here because
     // the single source of truth is the DB; realtime will sync results.
 
@@ -1166,7 +1206,7 @@ async function handleBooking(e) {
     const payload = {
       user_id: currentUser.id || currentUser.email,
       dentist_staff_code: dentist,
-      appointment_datetime: `${appointmentDate}T${appointmentTime}:00`,
+      appointment_datetime: appointmentDateTime,
       status: 'Confirmed',
       user_name: currentUser.name,
       user_email: currentUser.email,

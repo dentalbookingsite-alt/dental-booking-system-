@@ -1,15 +1,44 @@
 /* global window */
 
-(function initSupabaseBrowser() {
+async function loadSupabaseEnv() {
+  const injectedEnv =
+    typeof window !== 'undefined' && window.__SUPABASE_ENV__
+      ? window.__SUPABASE_ENV__
+      : {};
+
+  if (injectedEnv && injectedEnv.url && injectedEnv.anonKey) {
+    return injectedEnv;
+  }
+
+  try {
+    const response = await fetch('/api/supabase-env', { cache: 'no-store' });
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {};
+    }
+
+    if (data && data.url && data.anonKey) {
+      window.__SUPABASE_ENV__ = {
+        url: data.url,
+        anonKey: data.anonKey,
+      };
+      return window.__SUPABASE_ENV__;
+    }
+
+    return {};
+  } catch (error) {
+    console.error('[supabase-browser] Failed to fetch Supabase env from /api/supabase-env:', error);
+    return {};
+  }
+}
+
+async function initSupabaseBrowser() {
   // Prevent double-load
   if (window.__SUPABASE_BROWSER_INIT__) return;
   window.__SUPABASE_BROWSER_INIT__ = true;
 
-  const env =
-    (typeof window !== 'undefined' && window.__SUPABASE_ENV__)
-      ? window.__SUPABASE_ENV__
-      : {};
-
+  const env = await loadSupabaseEnv();
   const url = env && env.url;
   const anonKey = env && env.anonKey;
 
@@ -20,7 +49,7 @@
   if (missing.length) {
     console.error(
       `[supabase-browser] Supabase env vars missing: ${missing.join(', ')}. ` +
-        'Set them in Vercel Environment Variables (NEXT_PUBLIC_*), then redeploy.'
+        'Set them in Vercel Environment Variables (NEXT_PUBLIC_*), or create a local .env.local file and restart the dev server.'
     );
     window.supabase = null;
     return;
@@ -58,6 +87,8 @@
   };
 
   document.head.appendChild(script);
-})();
+}
+
+initSupabaseBrowser();
 
 

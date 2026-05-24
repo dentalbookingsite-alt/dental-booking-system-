@@ -870,20 +870,21 @@ async function renderDashboardSummary() {
     const { data, error } = await sb
       .from('appointments')
       .select('*')
-      .eq('email', currentUser.email)
+      .eq('user_email', currentUser.email)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     const upcoming = (data || [])
+      .map(normalizeAppointmentRecord)
       .filter(apt => {
-        const d = new Date(apt.appointment_date || apt.date);
-        return !isNaN(d) && d >= new Date();
+        const d = new Date(apt.appointment_date);
+        return !Number.isNaN(d.getTime()) && d >= new Date();
       })
       .sort(
         (a, b) =>
-          new Date(a.appointment_date || a.date) - new Date(b.appointment_date || b.date) ||
-          String(a.appointment_time || a.time || '').localeCompare(String(b.appointment_time || b.time || ''))
+          new Date(a.appointment_date) - new Date(b.appointment_date) ||
+          String(a.appointment_time || '').localeCompare(String(b.appointment_time || ''))
       );
 
     if (upcoming.length === 0) {
@@ -1161,20 +1162,18 @@ async function handleBooking(e) {
     // Slot conflict check (optional). We do not block perfectly here because
     // the single source of truth is the DB; realtime will sync results.
 
-    // ✅ Supabase insert payload mapped to your required DB columns
+    // ✅ Supabase insert payload mapped to the current appointments schema
     const payload = {
-      name: currentUser.name,
-      email: currentUser.email,
-      phone: currentUser.phone,
-      service: serviceType,
-      appointment_date: appointmentDate,
-      appointment_time: appointmentTime,
-      dentist: dentist,
-      notes: notes,
+      user_id: currentUser.id || currentUser.email,
+      dentist_staff_code: dentist,
+      appointment_datetime: `${appointmentDate}T${appointmentTime}:00`,
       status: 'Confirmed',
-      created_at: new Date().toISOString(),
+      user_name: currentUser.name,
+      user_email: currentUser.email,
+      user_phone: currentUser.phone || '',
+      notes: notes,
+      booked_at: new Date().toISOString(),
     };
-
 
     showMessage('Booking request sent. Saving to database...', 'success', 'bookingMessage');
 
@@ -1269,7 +1268,7 @@ async function displayAppointments() {
       throw error;
     }
 
-    const userAppointments = data || [];
+    const userAppointments = (data || []).map(normalizeAppointmentRecord);
 
     if (userAppointments.length === 0) {
       appointmentsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">No appointments booked yet.</p>';
@@ -1474,14 +1473,16 @@ async function updateBookingOverview() {
       } else {
         const { data, error } = await sb
           .from('appointments')
-          .select('appointment_date')
-          .eq('email', currentUser.email);
+          .select('*')
+          .eq('user_email', currentUser.email);
 
         if (!error) {
-          const upcoming = (data || []).filter(apt => {
-            const d = new Date(apt.appointment_date || apt.date);
-            return !isNaN(d) && d >= new Date();
-          });
+          const upcoming = (data || [])
+            .map(normalizeAppointmentRecord)
+            .filter(apt => {
+              const d = new Date(apt.appointment_date);
+              return !Number.isNaN(d.getTime()) && d >= new Date();
+            });
           upcomingCountEl.textContent = String(upcoming.length);
         }
       }
@@ -2323,7 +2324,7 @@ async function dentistLoadDashboard() {
 
     if (error) throw error;
 
-    const appointments = data || [];
+    const appointments = (data || []).map(normalizeAppointmentRecord);
     const dentistAppointments = appointments.filter(apt => isAssignedDentist(apt.dentist, currentUser.name));
 
     const today = new Date();
@@ -2420,7 +2421,7 @@ async function loadDentistAppointments(searchTerm = '') {
 
     if (error) throw error;
 
-    const appointments = data || [];
+    const appointments = (data || []).map(normalizeAppointmentRecord);
 
     const filtered = appointments.filter(apt => {
       const apptDentist = apt.dentist || '';
@@ -2432,7 +2433,7 @@ async function loadDentistAppointments(searchTerm = '') {
       return (apt.userName || '').toLowerCase().includes(term) ||
         (apt.service || '').toLowerCase().includes(term) ||
         (apt.status || '').toLowerCase().includes(term) ||
-        (apt.appointment_date || apt.date || '').toLowerCase().includes(term);
+        (apt.appointment_date || '').toLowerCase().includes(term);
     });
 
     if (filtered.length === 0) {
@@ -2487,17 +2488,17 @@ async function loadDentistPatients(searchTerm = '') {
 
     if (error) throw error;
 
-    const appointments = data || [];
+    const appointments = (data || []).map(normalizeAppointmentRecord);
     const patients = [];
 
     appointments.forEach(apt => {
       if (!isAssignedDentist(apt.dentist, currentUser.name)) return;
-      const key = `${apt.userName || ''}|${apt.appointment_date || apt.date || ''}|${apt.service || ''}`;
+      const key = `${apt.userName || ''}|${apt.appointment_date || ''}|${apt.service || ''}`;
       if (!patients.some(p => p.key === key)) {
         patients.push({
           key,
           name: apt.userName || '',
-          date: apt.appointment_date || apt.date || '',
+          date: apt.appointment_date || '',
           service: apt.service || '',
           status: apt.status || '',
         });
@@ -2669,7 +2670,7 @@ async function adminLoadDashboard(searchTerm = '') {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    const appointments = data || [];
+    const appointments = (data || []).map(normalizeAppointmentRecord);
 
     const todayAppointments = appointments.filter(apt => {
       const appointmentDate = new Date(apt.appointment_date || apt.date);
@@ -3000,7 +3001,7 @@ async function loadAllAppointments(searchTerm = '') {
       throw error;
     }
 
-    const appointments = data || [];
+    const appointments = (data || []).map(normalizeAppointmentRecord);
 
     const filtered = appointments.filter(a => {
       // Support both old and new column names.
@@ -4117,6 +4118,40 @@ function safeParseJson(value, fallback = null) {
     console.warn('[dashboard] Failed to parse JSON from storage:', error);
     return fallback;
   }
+}
+
+function normalizeAppointmentRecord(appointment = {}) {
+  const appointmentDateTime = appointment.appointment_datetime || appointment.appointmentDateTime || '';
+  const parsedDateTime = appointmentDateTime ? new Date(appointmentDateTime) : null;
+
+  const appointmentDate =
+    appointment.appointment_date ||
+    appointment.date ||
+    (parsedDateTime && !Number.isNaN(parsedDateTime.getTime())
+      ? parsedDateTime.toISOString().slice(0, 10)
+      : '');
+  const appointmentTime =
+    appointment.appointment_time ||
+    appointment.time ||
+    (parsedDateTime && !Number.isNaN(parsedDateTime.getTime())
+      ? parsedDateTime.toTimeString().slice(0, 5)
+      : '');
+
+  return {
+    ...appointment,
+    id: appointment.id ?? null,
+    service: appointment.service || '',
+    dentist: appointment.dentist || appointment.dentist_staff_code || '',
+    appointment_date: appointmentDate,
+    appointment_time: appointmentTime,
+    userName: appointment.user_name || appointment.name || appointment.userName || '',
+    userEmail: appointment.user_email || appointment.email || '',
+    userPhone: appointment.user_phone || appointment.phone || '',
+    userId: appointment.user_id || appointment.userId || '',
+    notes: appointment.notes || '',
+    dentistNotes: appointment.dentist_notes || appointment.dentistNotes || '',
+    status: appointment.status || 'Pending',
+  };
 }
 
 function getSupabaseOrNull(context = 'operation') {

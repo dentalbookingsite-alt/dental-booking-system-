@@ -6,14 +6,8 @@ export default function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const { env } = import.meta as {
-    env?: {
-      VITE_SUPABASE_URL?: string;
-      VITE_SUPABASE_ANON_KEY?: string;
-    };
-  };
-  const supabaseUrl = env?.VITE_SUPABASE_URL || '';
-  const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY || '';
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 
   const supabaseEnv = {
     url: supabaseUrl,

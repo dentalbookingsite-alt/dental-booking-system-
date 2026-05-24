@@ -837,15 +837,37 @@ renderDashboardSummary();
 async function renderDashboardSummary() {
   const nextAppointmentCard = document.getElementById('nextAppointmentCard');
   const nextAppointmentStatus = document.getElementById('nextAppointmentStatus');
-  const currentUserData = localStorage.getItem('currentUser');
-  if (!nextAppointmentCard || !nextAppointmentStatus || !currentUserData) {
+
+  if (!nextAppointmentCard || !nextAppointmentStatus) {
     return;
   }
 
-  const currentUser = JSON.parse(currentUserData);
+  const currentUser = safeParseJson(localStorage.getItem('currentUser'), null);
+  if (!currentUser || typeof currentUser.email !== 'string') {
+    nextAppointmentStatus.textContent = 'Unavailable';
+    nextAppointmentCard.innerHTML = `
+      <div class="summary-empty">
+        <p>Unable to load appointment data.</p>
+        <small>Please sign in and try again.</small>
+      </div>
+    `;
+    return;
+  }
+
+  const sb = getSupabaseOrNull('renderDashboardSummary');
+  if (!sb) {
+    nextAppointmentStatus.textContent = 'Unavailable';
+    nextAppointmentCard.innerHTML = `
+      <div class="summary-empty">
+        <p>Unable to load appointment data.</p>
+        <small>Supabase is not ready yet.</small>
+      </div>
+    `;
+    return;
+  }
 
   try {
-    const { data, error } = await window.supabase
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .eq('email', currentUser.email)
@@ -891,7 +913,7 @@ async function renderDashboardSummary() {
       </div>
     `;
   } catch (err) {
-    console.error('Error fetching appointments for dashboard summary:', err);
+    console.error('Dashboard loading failed:', err);
     nextAppointmentStatus.textContent = 'Error';
     nextAppointmentCard.innerHTML = `
       <div class="summary-empty">
@@ -1097,10 +1119,9 @@ async function handleBooking(e) {
     const currentUserData = localStorage.getItem('currentUser');
     console.log('[booking] Current user data:', currentUserData);
 
-    // Hard block if Supabase isn't ready.
-    if (!window.supabase) {
+    if (!window.supabaseReady) {
       const msg =
-        'Supabase is not initialized. Check console for missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.';
+        'Supabase is not initialized. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.';
       console.error('[booking] Blocked: Supabase not ready');
       showMessage(msg, 'error', 'bookingMessage');
       return;
@@ -1229,8 +1250,15 @@ async function displayAppointments() {
       email: currentUser.email,
     });
 
+    const sb = getSupabaseOrNull('displayAppointments');
+    if (!sb) {
+      appointmentsList.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">Supabase is not ready.</p>';
+      if (cancelAllBtn) cancelAllBtn.style.display = 'none';
+      return;
+    }
+
     // If your DB design does not include userId, switch to filtering by email.
-    const { data, error } = await window.supabase
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .eq('user_email', currentUser.email)
@@ -1321,7 +1349,13 @@ async function saveDentistNotesFromModal() {
   try {
     console.log('[appointments] saveDentistNotesFromModal update:', _finishAppointmentPendingId);
 
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('saveDentistNotesFromModal');
+    if (!sb) {
+      alert('Supabase is not ready right now. Please try again later.');
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .update({
         status: 'Finished',
@@ -1370,7 +1404,13 @@ async function renderRecords() {
   try {
     const currentUser = JSON.parse(currentUserData);
 
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('renderRecords');
+    if (!sb) {
+      recordsList.innerHTML = '<p style="text-align:center; padding:40px; color:#999;">Supabase is not ready.</p>';
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .eq('email', currentUser.email)
@@ -1427,18 +1467,23 @@ async function updateBookingOverview() {
 
   // Fetch upcoming appointments count from Supabase (no localStorage usage)
   try {
-    if (upcomingCountEl && window.supabase) {
-    const { data, error } = await window.supabase
-      .from('appointments')
-      .select('appointment_date')
-      .eq('email', currentUser.email);
+    if (upcomingCountEl) {
+      const sb = getSupabaseOrNull('updateBookingOverview');
+      if (!sb) {
+        upcomingCountEl.textContent = '0';
+      } else {
+        const { data, error } = await sb
+          .from('appointments')
+          .select('appointment_date')
+          .eq('email', currentUser.email);
 
-      if (!error) {
-        const upcoming = (data || []).filter(apt => {
-          const d = new Date(apt.appointment_date || apt.date);
-          return !isNaN(d) && d >= new Date();
-        });
-        upcomingCountEl.textContent = String(upcoming.length);
+        if (!error) {
+          const upcoming = (data || []).filter(apt => {
+            const d = new Date(apt.appointment_date || apt.date);
+            return !isNaN(d) && d >= new Date();
+          });
+          upcomingCountEl.textContent = String(upcoming.length);
+        }
       }
     }
   } catch (err) {
@@ -1480,7 +1525,13 @@ async function cancelAppointment(appointmentId) {
   try {
     console.log('[appointments] cancelAppointment:', appointmentId);
 
-    const { error } = await window.supabase
+    const sb = getSupabaseOrNull('cancelAppointment');
+    if (!sb) {
+      alert('Supabase is not ready right now. Please try again later.');
+      return;
+    }
+
+    const { error } = await sb
       .from('appointments')
       .delete()
       .eq('id', appointmentId);
@@ -1510,7 +1561,13 @@ async function cancelAllAppointments() {
     const currentUser = JSON.parse(localStorage.getItem('currentUser'));
     console.log('[appointments] cancelAllAppointments for:', { email: currentUser?.email, id: currentUser?.id });
 
-    const { error } = await window.supabase
+    const sb = getSupabaseOrNull('cancelAllAppointments');
+    if (!sb) {
+      alert('Supabase is not ready right now. Please try again later.');
+      return;
+    }
+
+    const { error } = await sb
       .from('appointments')
       .delete()
       .eq('email', currentUser.email);
@@ -1971,7 +2028,14 @@ async function showNotifications() {
   }
 
   try {
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('showNotifications');
+    if (!sb) {
+      list.innerHTML = '<p>Supabase is not ready.</p>';
+      if (modal) modal.style.display = 'block';
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .order('created_at', { ascending: false })
@@ -2243,11 +2307,16 @@ loadDentistNotes();
 });
 
 async function dentistLoadDashboard() {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-  if (!currentUser) return;
+  const currentUser = safeParseJson(localStorage.getItem('currentUser'), null);
+  if (!currentUser || typeof currentUser.name !== 'string') {
+    return;
+  }
 
   try {
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('dentistLoadDashboard');
+    if (!sb) return;
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .order('created_at', { ascending: false });
@@ -2280,7 +2349,7 @@ async function dentistLoadDashboard() {
     if (pendingEl) pendingEl.textContent = pendingApprovals;
     if (upcomingEl) upcomingEl.textContent = upcomingPatients;
   } catch (err) {
-    console.error('[dentist] dentistLoadDashboard failed:', err);
+    console.error('Dashboard loading failed:', err);
   }
 }
 
@@ -2338,7 +2407,13 @@ async function loadDentistAppointments(searchTerm = '') {
   if (!body) return;
 
   try {
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('loadDentistAppointments');
+    if (!sb) {
+      body.innerHTML = '<tr><td colspan="6">Supabase is not ready.</td></tr>';
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .order('created_at', { ascending: false });
@@ -2399,7 +2474,13 @@ async function loadDentistPatients(searchTerm = '') {
   if (!body) return;
 
   try {
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('loadDentistPatients');
+    if (!sb) {
+      body.innerHTML = '<tr><td colspan="4">Supabase is not ready.</td></tr>';
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .order('created_at', { ascending: false });
@@ -2458,7 +2539,13 @@ async function loadDentistNotes() {
   if (!body) return;
 
   try {
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('loadDentistNotes');
+    if (!sb) {
+      body.innerHTML = '<tr><td colspan="4">Supabase is not ready.</td></tr>';
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .order('created_at', { ascending: false });
@@ -2567,12 +2654,16 @@ dentistLoadDashboard();
 // ===== SAFE ADMIN DASHBOARD (RENAMED to avoid conflict) =====
 async function adminLoadDashboard(searchTerm = '') {
   try {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const parsedUsers = safeParseJson(localStorage.getItem('users'), []);
+    const users = Array.isArray(parsedUsers) ? parsedUsers : [];
     const today = new Date();
     const rangeFilter = document.getElementById('adminDashboardRangeFilter')?.value || 'today';
     const statusFilter = document.getElementById('adminDashboardStatusFilter')?.value || '';
 
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('adminLoadDashboard');
+    if (!sb) return;
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .order('created_at', { ascending: false });
@@ -2621,15 +2712,19 @@ async function adminLoadDashboard(searchTerm = '') {
     const confirmedBookings = todayAppointments.filter(a => a.status === 'Confirmed').length;
     const pendingRequests = appointments.filter(a => a.status === 'Pending').length;
 
-    document.getElementById('adminTotalAppointments').textContent = totalAppointments;
-    document.getElementById('adminConfirmedBookings').textContent = confirmedBookings;
-    document.getElementById('adminPendingRequests').textContent = pendingRequests;
+    const totalEl = document.getElementById('adminTotalAppointments');
+    const confirmedEl = document.getElementById('adminConfirmedBookings');
+    const pendingEl = document.getElementById('adminPendingRequests');
+
+    if (totalEl) totalEl.textContent = totalAppointments;
+    if (confirmedEl) confirmedEl.textContent = confirmedBookings;
+    if (pendingEl) pendingEl.textContent = pendingRequests;
 
     updateTodaySchedule(todayAppointments, searchTerm);
     updatePendingRequests(appointments.filter(a => a.status === 'Pending'), searchTerm);
     updateActivityFeed(users, appointments);
   } catch (err) {
-    console.error('[admin] adminLoadDashboard failed:', err);
+    console.error('Dashboard loading failed:', err);
   }
 }
 
@@ -2889,7 +2984,13 @@ async function loadAllAppointments(searchTerm = '') {
 
     console.log('[admin] loadAllAppointments: selecting from Supabase...');
 
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('loadAllAppointments');
+    if (!sb) {
+      tbody.innerHTML = '<tr><td colspan="8">Supabase is not ready.</td></tr>';
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .order('created_at', { ascending: false });
@@ -3485,7 +3586,14 @@ async function loadPayments(searchTerm = '') {
   // Payments are derived from appointment status in this demo.
   // We now derive them from Supabase.
   try {
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('loadPayments');
+    if (!sb) {
+      const tbody = document.getElementById('adminPaymentsBody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7">Supabase is not ready.</td></tr>';
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .order('created_at', { ascending: false });
@@ -3707,8 +3815,14 @@ async function approveAllPending() {
   try {
     console.log('[admin] approveAllPending');
 
+    const sb = getSupabaseOrNull('approveAllPending');
+    if (!sb) {
+      alert('Supabase is not ready right now. Please try again later.');
+      return;
+    }
+
     // Approve all pending rows (note: this will confirm every Pending appointment).
-    const { data, error } = await window.supabase
+    const { data, error } = await sb
       .from('appointments')
       .update({ status: 'Confirmed' })
       .eq('status', 'Pending')
@@ -3870,7 +3984,13 @@ loadAllAppointments(dateISO);
 // ===== ACTIONS =====
 async function viewAppointmentDetails(id) {
   try {
-    const { data, error } = await window.supabase
+    const sb = getSupabaseOrNull('viewAppointmentDetails');
+    if (!sb) {
+      alert('Supabase is not ready right now. Please try again later.');
+      return;
+    }
+
+    const { data, error } = await sb
       .from('appointments')
       .select('*')
       .eq('id', id)
@@ -3894,7 +4014,13 @@ async function toggleStatus(id, status) {
     const newStatus = status === 'Confirmed' ? 'Pending' : 'Confirmed';
     console.log('[admin] toggleStatus:', { id, from: status, to: newStatus });
 
-    const { error } = await window.supabase
+    const sb = getSupabaseOrNull('toggleStatus');
+    if (!sb) {
+      alert('Supabase is not ready right now. Please try again later.');
+      return;
+    }
+
+    const { error } = await sb
       .from('appointments')
       .update({ status: newStatus })
       .eq('id', id);
@@ -3918,7 +4044,13 @@ async function approveAppointment(id) {
   try {
     console.log('[admin] approveAppointment:', id);
 
-    const { error } = await window.supabase
+    const sb = getSupabaseOrNull('approveAppointment');
+    if (!sb) {
+      alert('Supabase is not ready right now. Please try again later.');
+      return;
+    }
+
+    const { error } = await sb
       .from('appointments')
       .update({ status: 'Confirmed' })
       .eq('id', id);
@@ -3944,7 +4076,13 @@ async function updateAppointmentStatus(id, status) {
   try {
     console.log('[dentist] updateAppointmentStatus:', { id, status });
 
-    const { error } = await window.supabase
+    const sb = getSupabaseOrNull('updateAppointmentStatus');
+    if (!sb) {
+      alert('Supabase is not ready right now. Please try again later.');
+      return;
+    }
+
+    const { error } = await sb
       .from('appointments')
       .update({ status })
       .eq('id', id);
@@ -3968,12 +4106,34 @@ async function updateAppointmentStatus(id, status) {
 
 // ===== Supabase integration for appointments =====
 // Supabase client is expected on window.supabase (bootstrapped via /supabase-browser.js)
-function getSupabaseOrNull() {
+function safeParseJson(value, fallback = null) {
+  if (typeof value !== 'string') {
+    return value ?? fallback;
+  }
+
   try {
-    if (typeof window === 'undefined') return null;
-    if (!window.supabase) return null;
+    return JSON.parse(value);
+  } catch (error) {
+    console.warn('[dashboard] Failed to parse JSON from storage:', error);
+    return fallback;
+  }
+}
+
+function getSupabaseOrNull(context = 'operation') {
+  try {
+    if (typeof window === 'undefined') {
+      console.warn(`[supabase] ${context}: window unavailable`);
+      return null;
+    }
+
+    if (!window.supabase || !window.supabaseReady) {
+      console.warn(`[supabase] ${context}: client not ready`);
+      return null;
+    }
+
     return window.supabase;
   } catch (e) {
+    console.warn(`[supabase] ${context}: failed to resolve client`, e);
     return null;
   }
 }

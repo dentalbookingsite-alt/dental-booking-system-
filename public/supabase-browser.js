@@ -1,13 +1,36 @@
 /* global window */
 
+function normalizeSupabaseUrl(value) {
+  if (!value) return '';
+
+  const trimmed = String(value).trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+
+  if (trimmed.endsWith('/rest/v1')) {
+    return trimmed.slice(0, -'/rest/v1'.length);
+  }
+
+  if (trimmed.endsWith('/rest/v1/')) {
+    return trimmed.slice(0, -'/rest/v1/'.length);
+  }
+
+  return trimmed;
+}
+
 async function loadSupabaseEnv() {
   const injectedEnv =
     typeof window !== 'undefined' && window.__SUPABASE_ENV__
       ? window.__SUPABASE_ENV__
       : {};
 
-  if (injectedEnv && injectedEnv.url && injectedEnv.anonKey) {
-    return injectedEnv;
+  const normalizedInjected = {
+    url: normalizeSupabaseUrl(injectedEnv.url),
+    anonKey: injectedEnv.anonKey || '',
+  };
+
+  if (normalizedInjected.url && normalizedInjected.anonKey) {
+    window.__SUPABASE_ENV__ = normalizedInjected;
+    return normalizedInjected;
   }
 
   try {
@@ -18,12 +41,14 @@ async function loadSupabaseEnv() {
       return {};
     }
 
-    if (data && data.url && data.anonKey) {
-      window.__SUPABASE_ENV__ = {
-        url: data.url,
-        anonKey: data.anonKey,
-      };
-      return window.__SUPABASE_ENV__;
+    const normalized = {
+      url: normalizeSupabaseUrl(data.url),
+      anonKey: data.anonKey || '',
+    };
+
+    if (normalized.url && normalized.anonKey) {
+      window.__SUPABASE_ENV__ = normalized;
+      return normalized;
     }
 
     return {};
@@ -38,17 +63,17 @@ async function initSupabaseBrowser() {
   window.__SUPABASE_BROWSER_INIT__ = true;
 
   const env = await loadSupabaseEnv();
-  const url = env && env.url;
+  const url = normalizeSupabaseUrl(env && env.url);
   const anonKey = env && env.anonKey;
 
   const missing = [];
-  if (!url) missing.push('VITE_SUPABASE_URL');
-  if (!anonKey) missing.push('VITE_SUPABASE_ANON_KEY');
+  if (!url) missing.push('VITE_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL');
+  if (!anonKey) missing.push('VITE_SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
   if (missing.length) {
     console.error(
       `[supabase-browser] Supabase env vars missing: ${missing.join(', ')}. ` +
-        'Set them in your deployment environment (VITE_*), or create a local .env.local file and restart the dev server.'
+        'Set them in your deployment environment or local .env.local file and restart the dev server.'
     );
     window.supabase = null;
     return;
@@ -61,13 +86,13 @@ async function initSupabaseBrowser() {
 
   script.onload = function () {
     try {
-      if (!window.supabaseJs || typeof window.supabaseJs.createClient !== 'function') {
-        console.error('[supabase-browser] supabaseJs global missing after CDN load');
+      if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        console.error('[supabase-browser] supabase global missing after CDN load');
         window.supabase = null;
         return;
       }
 
-      window.supabase = window.supabaseJs.createClient(url, anonKey, {
+      window.supabase = window.supabase.createClient(url, anonKey, {
         auth: { persistSession: false },
       });
 

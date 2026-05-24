@@ -1,11 +1,32 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+function normalizeSupabaseUrl(value) {
+  if (!value) return ''
+
+  const trimmed = String(value).trim().replace(/\/+$/, '')
+  if (!trimmed) return ''
+
+  if (trimmed.endsWith('/rest/v1')) {
+    return trimmed.slice(0, -'/rest/v1'.length)
+  }
+
+  if (trimmed.endsWith('/rest/v1/')) {
+    return trimmed.slice(0, -'/rest/v1/'.length)
+  }
+
+  return trimmed
+}
+
+const supabaseUrl = normalizeSupabaseUrl(
+  import.meta.env.NEXT_PUBLIC_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL
+)
+const supabaseAnonKey =
+  import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    'Missing Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
+    'Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY or VITE_* values in your .env file.'
   )
 }
 

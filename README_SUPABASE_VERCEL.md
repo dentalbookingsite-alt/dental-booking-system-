@@ -9,11 +9,11 @@ That browser file expects the values to be injected into `window.__SUPABASE_ENV_
 ## Required Environment Variables
 Set these in your deployment or local env file:
 
-- `VITE_SUPABASE_URL` = `https://<project-ref>.supabase.co`
-- `VITE_SUPABASE_ANON_KEY` = your Supabase **anon/public** key
+- `NEXT_PUBLIC_SUPABASE_URL` = `https://<project-ref>.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase **anon/public** key
 
 ### Notes
-- The `VITE_` prefix is used in this project’s browser bootstrap.
+- The `NEXT_PUBLIC_` prefix is used in this project’s browser bootstrap.
 - Do **not** put service-role keys in the browser.
 
 ## Redeploy Instructions (required)

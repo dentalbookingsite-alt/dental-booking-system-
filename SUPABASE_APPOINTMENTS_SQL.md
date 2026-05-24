@@ -4,9 +4,10 @@ Paste this into the Supabase SQL editor (Database → SQL Editor).
 
 ## 1) Create/replace the appointments table
 
-> Notes:
-> - Your frontend uses: `appointment_date`, `appointment_time`, `status`, `dentist`, `notes`, `dentistNotes`, `finishedDate`.
-> - Your frontend also filters by `email`.
+> REQUIRED checklist columns (frontend should read/write these):
+> - `user_id`, `dentist_staff_code`, `appointment_datetime`, `status`
+> - `user_name`, `user_email`, `user_phone`, `notes`
+> - `dentist_notes`, `finished_at`, `booked_at`, `created_at`
 
 ```sql
 -- (Optional) Use the public schema
@@ -16,28 +17,21 @@ Paste this into the Supabase SQL editor (Database → SQL Editor).
 create table if not exists public.appointments (
   id bigserial primary key,
 
-  -- Required by your checklist
-  name text not null,
-  email text not null,
-  phone text,
-  service text not null,
-  appointment_date date not null,
-  appointment_time time not null,
-
-  -- UI-compat columns (needed because your current frontend reads/writes them)
+  user_id text not null,
+  dentist_staff_code text not null,
+  appointment_datetime timestamp not null,
   status text not null default 'Confirmed',
-  dentist text,
+
+  user_name text not null,
+  user_email text not null,
+  user_phone text,
   notes text,
-  dentistNotes text,
-  finishedDate timestamptz,
 
-  -- created timestamp
+  dentist_notes text,
+  finished_at timestamptz,
+  booked_at timestamptz not null default now(),
+
   created_at timestamptz not null default now(),
-
-  -- Helpful uniqueness / ordering keys (optional)
-  -- userId bigint,
-
-  -- Extra: keep created_at consistent
   updated_at timestamptz not null default now()
 );
 
@@ -63,10 +57,9 @@ alter table public.appointments enable row level security;
 alter table public.appointments force row level security;
 ```
 
-## 3) Policies: allow anonymous INSERT and SELECT
+## 3) Policies: allow anonymous INSERT/SELECT/UPDATE/DELETE
 
-Because your current app is a **static client** (no Supabase Auth flow) and you need cross-device syncing,
-we allow anonymous reads/writes.
+Because your app is a **static client** (no Supabase Auth flow), it currently uses anonymous `anon` access.
 
 ```sql
 -- Anonymous INSERT (booking form)
@@ -83,15 +76,7 @@ for select
 to anon
 using (true);
 
--- (Optional but recommended) Allow anonymous UPDATE/DELETE
--- Only add these if your frontend updates appointment status/notes directly.
--- Your current frontend DOES update:
---   - status changes
---   - dentistNotes + finishedDate
---   - cancel appointment (delete)
--- If you do not want open updates/deletes later, remove these policies and
--- implement admin-only auth. For now, keep them working end-to-end.
-
+-- Anonymous UPDATE (status updates / dentist notes / finished_at)
 create policy "appointments_anonymous_update"
 on public.appointments
 for update
@@ -99,6 +84,7 @@ to anon
 using (true)
 with check (true);
 
+-- Anonymous DELETE (cancel appointment)
 create policy "appointments_anonymous_delete"
 on public.appointments
 for delete
@@ -106,23 +92,20 @@ to anon
 using (true);
 ```
 
-## 4) (Optional) Indexes for performance
+## 4) Indexes for performance
 
 ```sql
 create index if not exists idx_appointments_created_at on public.appointments (created_at desc);
-create index if not exists idx_appointments_email on public.appointments (email);
+create index if not exists idx_appointments_user_email on public.appointments (user_email);
 create index if not exists idx_appointments_status on public.appointments (status);
-create index if not exists idx_appointments_dentist on public.appointments (dentist);
-create index if not exists idx_appointments_date on public.appointments (appointment_date);
+create index if not exists idx_appointments_dentist_staff_code on public.appointments (dentist_staff_code);
+create index if not exists idx_appointments_appointment_datetime on public.appointments (appointment_datetime);
 ```
 
-## 5) Verify policies (sanity check)
-
-In SQL editor, you can run:
+## 5) Verify
 
 ```sql
 select count(*) from public.appointments;
 ```
 
-You should be able to view results from the dashboards after the deployment.
 

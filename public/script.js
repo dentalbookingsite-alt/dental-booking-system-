@@ -1123,6 +1123,7 @@ async function handleBooking(e) {
     // Slot conflict check (optional). We do not block perfectly here because
     // the single source of truth is the DB; realtime will sync results.
 
+    // ✅ Supabase insert payload mapped to your required DB columns
     const payload = {
       name: currentUser.name,
       email: currentUser.email,
@@ -1130,13 +1131,12 @@ async function handleBooking(e) {
       service: serviceType,
       appointment_date: appointmentDate,
       appointment_time: appointmentTime,
-      // Extra fields your existing UI expects
       dentist: dentist,
       notes: notes,
       status: 'Confirmed',
-      userId: currentUser.id,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
+
 
     showMessage('Booking request sent. Saving to database...', 'success', 'bookingMessage');
 
@@ -1216,7 +1216,7 @@ async function displayAppointments() {
     const { data, error } = await window.supabase
       .from('appointments')
       .select('*')
-      .eq('email', currentUser.email)
+      .eq('user_email', currentUser.email)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -1411,10 +1411,10 @@ async function updateBookingOverview() {
   // Fetch upcoming appointments count from Supabase (no localStorage usage)
   try {
     if (upcomingCountEl && window.supabase) {
-      const { data, error } = await window.supabase
-        .from('appointments')
-        .select('appointment_date, date, appointment_time, time')
-        .eq('email', currentUser.email);
+    const { data, error } = await window.supabase
+      .from('appointments')
+      .select('appointment_date')
+      .eq('email', currentUser.email);
 
       if (!error) {
         const upcoming = (data || []).filter(apt => {

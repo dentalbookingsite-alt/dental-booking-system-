@@ -1093,7 +1093,7 @@ async function handleBooking(e) {
     // Hard block if Supabase isn't ready.
     if (!window.supabase) {
       const msg =
-        'Supabase is not initialized. Check console for missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.';
+        'Supabase is not initialized. Check console for missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.';
       console.error('[booking] Blocked: Supabase not ready');
       showMessage(msg, 'error', 'bookingMessage');
       return;

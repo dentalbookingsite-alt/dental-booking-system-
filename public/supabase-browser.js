@@ -11,7 +11,7 @@ async function loadSupabaseEnv() {
   }
 
   try {
-
+    const response = await fetch('/api/supabase-env', { cache: 'no-store' });
     const data = await response.json();
 
     if (!response.ok) {
@@ -34,7 +34,6 @@ async function loadSupabaseEnv() {
 }
 
 async function initSupabaseBrowser() {
-  // Prevent double-load
   if (window.__SUPABASE_BROWSER_INIT__) return;
   window.__SUPABASE_BROWSER_INIT__ = true;
 
@@ -43,20 +42,18 @@ async function initSupabaseBrowser() {
   const anonKey = env && env.anonKey;
 
   const missing = [];
-  if (!url) missing.push('NEXT_PUBLIC_SUPABASE_URL');
-  if (!anonKey) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  if (!url) missing.push('VITE_SUPABASE_URL');
+  if (!anonKey) missing.push('VITE_SUPABASE_ANON_KEY');
 
   if (missing.length) {
     console.error(
       `[supabase-browser] Supabase env vars missing: ${missing.join(', ')}. ` +
-        'Set them in Vercel Environment Variables (NEXT_PUBLIC_*), or create a local .env.local file and restart the dev server.'
+        'Set them in your deployment environment (VITE_*), or create a local .env.local file and restart the dev server.'
     );
     window.supabase = null;
     return;
   }
 
-  // Load a browser-safe supabase-js bundle and create the client.
-  // Using UMD is mobile-friendly and works with static pages in /public.
   const script = document.createElement('script');
   script.src =
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';

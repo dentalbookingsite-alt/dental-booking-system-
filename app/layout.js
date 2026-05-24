@@ -6,14 +6,18 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
   return (
     <html lang="en">
       <head>
         <script
+          // Inject browser-safe env for /public static pages.
           dangerouslySetInnerHTML={{
             __html: `window.__SUPABASE_ENV__ = {
-  url: ${JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_URL || '')},
-  anonKey: ${JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '')}
+  url: ${JSON.stringify(supabaseUrl)},
+  anonKey: ${JSON.stringify(supabaseAnonKey)}
 };`,
           }}
         />
@@ -22,5 +26,6 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+
 
 

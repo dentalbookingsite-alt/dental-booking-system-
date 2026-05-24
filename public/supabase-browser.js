@@ -1,67 +1,63 @@
 /* global window */
 
-// Bootstraps a Supabase client for static pages (public/*.html).
-// Expects window.__SUPABASE_ENV__ to be injected by app/layout.js
 (function initSupabaseBrowser() {
-  try {
-    const env = (typeof window !== 'undefined' && window.__SUPABASE_ENV__) ? window.__SUPABASE_ENV__ : {};
-    const url = env.url;
-    const anonKey = env.anonKey;
+  // Prevent double-load
+  if (window.__SUPABASE_BROWSER_INIT__) return;
+  window.__SUPABASE_BROWSER_INIT__ = true;
 
-    if (!url || !anonKey) {
-      console.error(
-        '[supabase-browser] Supabase env vars missing. ' +
-        'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel/Local.'
-      );
-      // Prevent hard crashes: downstream code will check window.supabase
-      window.supabase = null;
-      return;
-    }
+  const env =
+    (typeof window !== 'undefined' && window.__SUPABASE_ENV__)
+      ? window.__SUPABASE_ENV__
+      : {};
 
-    // Use the CDN build for static usage.
-    // This file lives in /public so it must be plain JS (no imports/exports).
-    var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
-    s.async = true;
+  const url = env && env.url;
+  const anonKey = env && env.anonKey;
 
-    s.onload = function () {
-      try {
-        if (!window.supabase) {
-          window.supabase = window.supabaseJs.createClient(url, anonKey, {
-            auth: { persistSession: false },
-          });
-        }
-        console.log('[supabase-browser] Supabase client ready');
-      } catch (e) {
-        console.error('[supabase-browser] createClient failed:', e);
-        window.supabase = null;
-      }
-    };
+  const missing = [];
+  if (!url) missing.push('NEXT_PUBLIC_SUPABASE_URL');
+  if (!anonKey) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
-    s.onerror = function (e) {
-      console.error('[supabase-browser] Failed to load supabase-js CDN:', e);
-      window.supabase = null;
-    };
-
-    document.head.appendChild(s);
-  } catch (err) {
-    console.error('[supabase-browser] init failed', err);
+  if (missing.length) {
+    console.error(
+      `[supabase-browser] Supabase env vars missing: ${missing.join(', ')}. ` +
+        'Set them in Vercel Environment Variables (NEXT_PUBLIC_*), then redeploy.'
+    );
     window.supabase = null;
+    return;
   }
+
+  // Load a browser-safe supabase-js bundle and create the client.
+  // Using UMD is mobile-friendly and works with static pages in /public.
+  const script = document.createElement('script');
+  script.src =
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+  script.async = true;
+
+  script.onload = function () {
+    try {
+      if (!window.supabaseJs || typeof window.supabaseJs.createClient !== 'function') {
+        console.error('[supabase-browser] supabaseJs global missing after CDN load');
+        window.supabase = null;
+        return;
+      }
+
+      window.supabase = window.supabaseJs.createClient(url, anonKey, {
+        auth: { persistSession: false },
+      });
+
+      console.log('[supabase-browser] Supabase client ready');
+    } catch (e) {
+      console.error('[supabase-browser] Failed to initialize Supabase client:', e);
+      window.supabase = null;
+    }
+  };
+
+  script.onerror = function (e) {
+    console.error('[supabase-browser] Failed to load supabase-js bundle:', e);
+    window.supabase = null;
+  };
+
+  document.head.appendChild(script);
 })();
 
-import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-export const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null;
-
-
-if (!supabase) {
-  alert("Supabase is not connected.");
-  return;
-}

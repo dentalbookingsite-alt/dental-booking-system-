@@ -1,15 +1,11 @@
-# TODO (ODBS Website)
+# ODBS Next.js TypeScript Fixes (BlackboxAI)
 
-- [x] Create/verify Supabase `appointments` schema matches REQUIRED checklist column set.
-  - Update `SUPABASE_APPOINTMENTS_SQL.md`
+## Plan checkpoints
+- [ ] Add missing dev dependency: @types/react-dom (if required)
+- [ ] Update tsconfig.json for Next.js + React + node typings (process.env)
+- [ ] Fix app/layout.tsx: import ReactNode type to avoid `React` namespace errors
+- [x] Clean install (npm ci) and ensure lockfile is consistent
+- [x] Run `npm run build` to confirm zero TS/JSX errors
+- [x] Confirm Vercel compatibility (production build)
 
-- [x] Refactor `public/script.js` to use REQUIRED schema columns.
-  - Stop using legacy fields (`email`, `appointment_date/time`, `dentistNotes`, `finishedDate`, `userName`, etc.)
-- [x] Update booking/finish/admin/dentist flows to load/update correctly after schema migration.
-
-- [ ] Smoke test in browser:
-  - booking insert
-  - patient appointments list
-  - dentist finishing flow
-  - admin pending/records views
 

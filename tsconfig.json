@@ -17,6 +17,9 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+
+    "types": ["node", "react", "react-dom"],
+
     "plugins": [
       {
         "name": "next"
@@ -26,7 +29,6 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "app/**/*.js",
     "next-env.d.ts",
     ".next/types/**/*.ts"
   ],
@@ -34,3 +36,4 @@
     "node_modules"
   ]
 }
+

@@ -1090,6 +1090,15 @@ async function handleBooking(e) {
     const currentUserData = localStorage.getItem('currentUser');
     console.log('[booking] Current user data:', currentUserData);
 
+    // Hard block if Supabase isn't ready.
+    if (!window.supabase) {
+      const msg =
+        'Supabase is not initialized. Check console for missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.';
+      console.error('[booking] Blocked: Supabase not ready');
+      showMessage(msg, 'error', 'bookingMessage');
+      return;
+    }
+
     if (!currentUserData) {
       showMessage('Please login first to book an appointment!', 'error', 'bookingMessage');
       return;
@@ -1101,6 +1110,7 @@ async function handleBooking(e) {
       showMessage('Please login first to book an appointment!', 'error', 'bookingMessage');
       return;
     }
+
 
     const serviceSelect = document.getElementById('serviceType');
     const selectedServices = serviceSelect

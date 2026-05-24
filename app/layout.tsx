@@ -1,14 +1,30 @@
+import type { ReactNode } from 'react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
- 
+
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+  const supabaseEnv = {
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  };
+
   return (
     <html lang="en">
       <head>
-        <title>Next.js</title>
+        <title>ODBS Dental Booking</title>
+        <script
+          // Inject browser-safe env for /public static pages.
+          // These static pages load /supabase-browser.js which reads window.__SUPABASE_ENV__.
+          dangerouslySetInnerHTML={{
+            __html: `window.__SUPABASE_ENV__ = ${JSON.stringify(supabaseEnv)};`,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -17,3 +33,4 @@ export default function RootLayout({
     </html>
   );
 }
+

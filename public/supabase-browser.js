@@ -52,8 +52,8 @@ async function loadSupabaseEnv() {
     }
 
     return {};
-  } catch (error) {
-    console.error('[supabase-browser] Failed to fetch Supabase env from /api/supabase-env:', error);
+  } catch (e) {
+    console.error('[supabase-browser] Failed to load Supabase env from API:', e);
     return {};
   }
 }
@@ -71,10 +71,7 @@ async function initSupabaseBrowser() {
   if (!anonKey) missing.push('VITE_SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
   if (missing.length) {
-    console.error(
-      `[supabase-browser] Supabase env vars missing: ${missing.join(', ')}. ` +
-        'Set them in your deployment environment or local .env.local file and restart the dev server.'
-    );
+    console.warn(`Supabase environment variables are not configured. Missing: ${missing.join(', ')}. Set these in your .env file or as environment variables. Supabase client will not be initialized.`);
     window.supabase = null;
     return;
   }

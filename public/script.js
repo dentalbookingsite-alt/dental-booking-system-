@@ -891,7 +891,14 @@ async function renderDashboardSummary() {
       </div>
     `;
   } catch (err) {
-    console.error('[dashboard] renderDashboardSummary failed:', err);
+    console.error('Error fetching appointments for dashboard summary:', err);
+    nextAppointmentStatus.textContent = 'Error';
+    nextAppointmentCard.innerHTML = `
+      <div class="summary-empty">
+        <p>Unable to load appointment data.</p>
+        <small>Please try again later.</small>
+      </div>
+    `;
   }
 }
 

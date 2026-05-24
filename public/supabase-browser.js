@@ -11,7 +11,7 @@ async function loadSupabaseEnv() {
   }
 
   try {
-    const response = await fetch('/api/supabase-env', { cache: 'no-store' });
+
     const data = await response.json();
 
     if (!response.ok) {

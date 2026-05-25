@@ -2165,20 +2165,20 @@ localStorage.setItem('users', JSON.stringify(users));
 if (window.supabase && window.supabaseReady) {
     try {
         const { error } = await window.supabase.from('users').insert([{
-    id: newUser.id,
+    id: String(newUser.id),
     name: newUser.name,
     email: newUser.email,
     phone: newUser.phone || '',
     role: newUser.role || 'patient',
-    password: newUser.password,
-    registered_date: newUser.registeredDate || new Date().toLocaleDateString(),
-    is_admin: newUser.isAdmin || false,
+    password_hash: newUser.password || '',
+    provider: newUser.provider || 'email',
+    registered_date: new Date().toISOString(),
 }]);
-        if (error) {
-            console.error('[register] Supabase insert error:', error);
-        } else {
-            console.log('[register] User saved to Supabase:', newUser.email);
-        }
+if (error) {
+    console.error('[register] Supabase insert error details:', JSON.stringify(error));
+} else {
+    console.log('[register] User saved to Supabase:', newUser.email);
+}
     } catch (err) {
         console.warn('[register] Failed to save user to Supabase:', err);
     }

@@ -34,40 +34,19 @@ function getInjectedEnv() {
   return { url, anonKey };
 }
 
-async function fetchEnvFromApi() {
-  const response = await fetch('/api/supabase-env', {
-    cache: 'no-store',
-    headers: {
-      'Cache-Control': 'no-store',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const payload = await response.json();
-  const url = normalizeSupabaseUrl(payload?.url || '');
-  const anonKey = typeof payload?.anonKey === 'string' ? payload.anonKey.trim() : '';
-
-  if (!url || !anonKey) {
-    return null;
-  }
-
-  return { url, anonKey };
-}
-
 async function initSupabase() {
-  const injectedEnv = getInjectedEnv();
-  const env = injectedEnv || (await fetchEnvFromApi());
+  const env = getInjectedEnv();
 
   if (!env || !env.url || !env.anonKey) {
     window.__SUPABASE_BROWSER_STATUS__ = 'missing-env';
     window.supabase = null;
     window.supabaseReady = false;
-    console.error('[supabase-browser] Missing Supabase environment variables.');
+    console.error(
+      '[supabase-browser] Missing Supabase environment variables. Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in Vercel AND you redeployed.'
+    );
     return;
   }
+
 
   const supabaseClient = createClient(env.url, env.anonKey);
   window.supabase = supabaseClient;
@@ -89,3 +68,4 @@ initSupabase().catch((error) => {
 });
 
 export default supabase;
+

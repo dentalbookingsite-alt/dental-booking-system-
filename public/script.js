@@ -2626,7 +2626,7 @@ function dentistToggleNotes() {
     const textarea = document.getElementById('dentistNotesTextarea');
 
     if (!modal || !textarea) {
-        alert('Notes modal elements are missing on this page. Please ensure dentistNotesModal and dentistNotesTextarea exist in dentist.html or index.html loaded view.');
+        console.warn('[dentist] dentistNotesModal/dentistNotesTextarea not found; skipping notes modal init.');
         return;
     }
 

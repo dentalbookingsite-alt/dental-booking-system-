@@ -2151,7 +2151,6 @@ return;
 }
 
 if (enteredCode === storedCode) {
-// Complete registration
 const tempUser = JSON.parse(localStorage.getItem('tempUser'));
 const newUser = {
 id: Date.now(),
@@ -2162,10 +2161,10 @@ const users = JSON.parse(localStorage.getItem('users') || '[]');
 users.push(newUser);
 localStorage.setItem('users', JSON.stringify(users));
 
-// Also save to Supabase users table
+// Save to Supabase
 if (window.supabase && window.supabaseReady) {
     try {
-        await window.supabase.from('users').insert([{
+        const { error } = await window.supabase.from('users').insert([{
             id: newUser.id,
             name: newUser.name,
             email: newUser.email,
@@ -2173,16 +2172,17 @@ if (window.supabase && window.supabaseReady) {
             role: newUser.role || 'patient',
             password: newUser.password,
         }]);
-        console.log('[register] User saved to Supabase:', newUser.email);
+        if (error) {
+            console.error('[register] Supabase insert error:', error);
+        } else {
+            console.log('[register] User saved to Supabase:', newUser.email);
+        }
     } catch (err) {
         console.warn('[register] Failed to save user to Supabase:', err);
     }
 }
 
-// Set as logged-in user
 localStorage.setItem('currentUser', JSON.stringify(newUser));
-
-// Clean up temporary data
 localStorage.removeItem('tempUser');
 localStorage.removeItem('verificationCode');
 localStorage.removeItem('verificationExpiry');
@@ -2199,7 +2199,6 @@ switchPage('dashboardPage');
 showVerificationMessage('Invalid verification code. Please try again.', 'error');
 }
 }
-
 // Validate verification code input (only numbers)
 function validateVerificationCode(input) {
 const cleaned = input.value.replace(/[^0-9]/g, '');

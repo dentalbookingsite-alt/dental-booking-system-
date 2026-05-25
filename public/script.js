@@ -2165,7 +2165,6 @@ localStorage.setItem('users', JSON.stringify(users));
 if (window.supabase && window.supabaseReady) {
     try {
         const { error } = await window.supabase.from('users').insert([{
-    id: String(newUser.id),
     name: newUser.name,
     email: newUser.email,
     phone: newUser.phone || '',

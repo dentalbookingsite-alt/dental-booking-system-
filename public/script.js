@@ -626,77 +626,88 @@ b.style.display = "flex";
 }
 
 // Handle Login
-function handleLogin(e) {
-e.preventDefault();
+async function handleLogin(e) {
+  e.preventDefault();
 
-if (updateLoginLockState(true)) {
-return;
-}
+  if (updateLoginLockState(true)) return;
 
-const email = document.getElementById('loginEmail').value;
-const password = document.getElementById('loginPassword').value;
-const rememberMe = document.querySelector('.remember-forget input[type="checkbox"]').checked;
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const rememberMe = document.querySelector('.remember-forget input[type="checkbox"]').checked;
 
-const users = JSON.parse(localStorage.getItem('users') || '[]');
+  // Check localStorage first (admin/dentist default accounts)
+  const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
+  let user = localUsers.find(u => u.email === email && u.password === password);
 
-const user = users.find(u => u.email === email && u.password === password);
+  // If not found locally, check Supabase
+  if (!user) {
+    const sb = getSupabaseOrNull('handleLogin');
+    if (sb) {
+      const { data, error } = await sb
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password_hash', password)
+        .maybeSingle();
 
-if (user) {
+      if (!error && data) {
+        user = {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          password: data.password_hash,
+          role: data.role || 'patient',
+          provider: data.provider,
+          registeredDate: data.registered_date,
+        };
+      }
+    }
+  }
 
-localStorage.setItem('currentUser', JSON.stringify(user));
-resetLoginAttempts();
+  if (user) {
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    resetLoginAttempts();
 
-// Redirect dentist users before admin check if the email uses the dentist domain
-if (email.endsWith("@dentist.odbs.com") || user.role === 'dentist') {
-user.role = 'dentist';
-localStorage.setItem('currentUser', JSON.stringify(user));
-window.location.href = "dentist.html";
-return;
-}
+    if (email.endsWith("@dentist.odbs.com") || user.role === 'dentist') {
+      user.role = 'dentist';
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      window.location.href = "dentist.html";
+      return;
+    }
 
-// ✅ CHECK IF EMAIL IS ADMIN DOMAIN
-if (email.endsWith("@odbs.com")) {
-user.isAdmin = true; // mark as admin
-localStorage.setItem('currentUser', JSON.stringify(user));
+    if (email.endsWith("@odbs.com")) {
+      user.isAdmin = true;
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      window.location.href = "admin.html";
+      return;
+    }
 
-window.location.href = "admin.html"; // 🔁 redirect to admin page
-return; // stop execution
-}
+    if (rememberMe) {
+      localStorage.setItem('rememberedCredentials', JSON.stringify({ email, password }));
+    } else {
+      localStorage.removeItem('rememberedCredentials');
+    }
 
-if (email.endsWith("@odbs.com")) {
-user.isDentist = true; // mark as dentist
-localStorage.setItem('currentUser', JSON.stringify(user));
+    displayUserName(user.name);
+    switchPage('dashboardPage');
+    resetForm('loginForm');
+    showMessage('Login successful!', 'success', 'loginMessage');
 
-window.location.href = "dentist.html"; // 🔁 redirect to dentist page
-return; // stop execution
-}
+  } else {
+    const attemptCount = getLoginAttemptCount() + 1;
+    setLoginAttemptCount(attemptCount);
 
-// Handle "Remember me" functionality
-if (rememberMe) {
-localStorage.setItem('rememberedCredentials', JSON.stringify({ email, password }));
-} else {
-localStorage.removeItem('rememberedCredentials');
-}
-
-displayUserName(user.name);
-switchPage('dashboardPage');
-resetForm('loginForm');
-showMessage('Login successful!', 'success', 'loginMessage');
-} else {
-// Handle failed login
-const attemptCount = getLoginAttemptCount() + 1;
-setLoginAttemptCount(attemptCount);
-
-if (attemptCount >= MAX_LOGIN_ATTEMPTS) {
-const lockTime = Date.now() + (LOGIN_LOCK_SECONDS * 1000);
-setLoginLockUntil(lockTime);
-updateLoginLockState(true);
-showMessage(`Too many failed login attempts. Please try again in ${LOGIN_LOCK_SECONDS} seconds.`, 'error', 'loginMessage');
-} else {
-const remainingAttempts = MAX_LOGIN_ATTEMPTS - attemptCount;
-showMessage(`Invalid email or password. ${remainingAttempts} attempt(s) remaining.`, 'error', 'loginMessage');
-}
-}
+    if (attemptCount >= MAX_LOGIN_ATTEMPTS) {
+      const lockTime = Date.now() + (LOGIN_LOCK_SECONDS * 1000);
+      setLoginLockUntil(lockTime);
+      updateLoginLockState(true);
+      showMessage(`Too many failed login attempts. Please try again in ${LOGIN_LOCK_SECONDS} seconds.`, 'error', 'loginMessage');
+    } else {
+      const remainingAttempts = MAX_LOGIN_ATTEMPTS - attemptCount;
+      showMessage(`Invalid email or password. ${remainingAttempts} attempt(s) remaining.`, 'error', 'loginMessage');
+    }
+  }
 }
 
 // Handle Registration

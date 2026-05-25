@@ -3149,39 +3149,55 @@ label.textContent = monthValue ? `${monthValue} ${yearValue}` : yearValue || 'Al
 
 
 // ===== PATIENTS =====
-function loadPatients(searchTerm = '') {
-const users = JSON.parse(localStorage.getItem('users') || '[]');
-const tbody = document.getElementById('adminPatientsBody');
-if (!tbody) return;
+async function loadPatients(searchTerm = '') {
+  const tbody = document.getElementById('adminPatientsBody');
+  if (!tbody) return;
 
-const term = (searchTerm || getSearchValue('adminPatientsSearch')).trim().toLowerCase();
-const patients = users.filter(u => u.role === 'patient')
-    .filter(p => {
-        if (!term) return true;
-        return [p.name, p.email, p.phone, p.registeredDate]
-            .filter(Boolean)
-            .some(value => value.toLowerCase().includes(term));
-    });
+  try {
+    const sb = getSupabaseOrNull('loadPatients');
+    if (!sb) {
+      tbody.innerHTML = '<tr><td colspan="4">Supabase is not ready.</td></tr>';
+      return;
+    }
 
-if (patients.length === 0) {
-tbody.innerHTML = '<tr><td colspan="4">No patients found.</td></tr>';
-return;
+    const { data, error } = await sb
+      .from('users')
+      .select('*')
+      .eq('role', 'patient')
+      .order('id', { ascending: true });
+
+    if (error) throw error;
+
+    const term = (searchTerm || getSearchValue('adminPatientsSearch')).trim().toLowerCase();
+
+    let patients = data || [];
+    if (term) {
+      patients = patients.filter(p =>
+        [p.name, p.email, p.phone, p.registered_date]
+          .filter(Boolean)
+          .some(v => v.toLowerCase().includes(term))
+      );
+    }
+
+    if (patients.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4">No patients found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = patients.map(p => `
+      <tr>
+        <td>${p.name || 'N/A'}</td>
+        <td>${p.email || 'N/A'}</td>
+        <td>${p.phone || 'N/A'}</td>
+        <td>${p.registered_date ? new Date(p.registered_date).toLocaleDateString() : 'N/A'}</td>
+      </tr>
+    `).join('');
+
+  } catch (err) {
+    console.error('[admin] loadPatients failed:', err);
+    tbody.innerHTML = '<tr><td colspan="4">Failed to load patients.</td></tr>';
+  }
 }
-
-tbody.innerHTML = patients.map(p => {
-const joined = p.registeredDate || 'N/A';
-
-return `
-   <tr>
-       <td>${p.name}</td>
-       <td>${p.email}</td>
-       <td>${p.phone || 'N/A'}</td>
-       <td>${joined}</td>
-   </tr>
-`;
-}).join('');
-}
-
 
 // ===== STAFF =====
 function getDefaultStaff() {

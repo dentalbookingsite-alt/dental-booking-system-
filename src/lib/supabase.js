@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
+
 function normalizeSupabaseUrl(value) {
   if (!value) return ''
 

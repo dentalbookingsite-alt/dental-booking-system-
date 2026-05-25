@@ -29,6 +29,7 @@
                 document.head.appendChild(s);
             })();
         </script>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     </head>
     
     <body>
@@ -492,15 +493,7 @@
                 emailjs.init('KnDgbWCdBCoyBYUSE'); 
             })();
         </script>
-        <script type="importmap">
-            {
-                "imports": {
-                    "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
-                }
-            }
-        </script>
-        <script type="module" src="/supabase-browser.js?v=20260524-1"></script>
-        <script defer src="script.js?v=20260524-1"></script>
+        <script src="script.js"></script>
 
     </body>
 </html>

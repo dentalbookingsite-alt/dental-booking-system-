@@ -2165,13 +2165,15 @@ localStorage.setItem('users', JSON.stringify(users));
 if (window.supabase && window.supabaseReady) {
     try {
         const { error } = await window.supabase.from('users').insert([{
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            phone: newUser.phone || '',
-            role: newUser.role || 'patient',
-            password: newUser.password,
-        }]);
+    id: newUser.id,
+    name: newUser.name,
+    email: newUser.email,
+    phone: newUser.phone || '',
+    role: newUser.role || 'patient',
+    password: newUser.password,
+    registered_date: newUser.registeredDate || new Date().toLocaleDateString(),
+    is_admin: newUser.isAdmin || false,
+}]);
         if (error) {
             console.error('[register] Supabase insert error:', error);
         } else {

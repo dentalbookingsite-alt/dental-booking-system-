@@ -2132,7 +2132,7 @@ if (m) m.style.display = 'none';
 });
 
 // Handle email verification form submission
-function handleEmailVerification(e) {
+async function handleEmailVerification(e) {
 e.preventDefault();
 
 const enteredCode = document.getElementById('verificationCode').value;
@@ -2161,6 +2161,23 @@ id: Date.now(),
 const users = JSON.parse(localStorage.getItem('users') || '[]');
 users.push(newUser);
 localStorage.setItem('users', JSON.stringify(users));
+
+// Also save to Supabase users table
+if (window.supabase && window.supabaseReady) {
+    try {
+        await window.supabase.from('users').insert([{
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            phone: newUser.phone || '',
+            role: newUser.role || 'patient',
+            password: newUser.password,
+        }]);
+        console.log('[register] User saved to Supabase:', newUser.email);
+    } catch (err) {
+        console.warn('[register] Failed to save user to Supabase:', err);
+    }
+}
 
 // Set as logged-in user
 localStorage.setItem('currentUser', JSON.stringify(newUser));

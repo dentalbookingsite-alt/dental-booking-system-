@@ -4307,14 +4307,22 @@ function startAppointmentsRealtime() {
   window.__appointmentsRealtimeChannel = channel;
 }
 
-const { createClient } = supabase;
+function initSupabase() {
+  if (typeof supabase === 'undefined' || !supabase.createClient) {
+    console.warn('[supabase] Not loaded yet, retrying...');
+    setTimeout(initSupabase, 100);
+    return;
+  }
 
-window.supabase = createClient(
-  'https://opauduwkhkbgmtjrkjlh.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wYXVkdXdraGtiZ210anJramxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyODg2ODEsImV4cCI6MjA5NDg2NDY4MX0.hfIoBIrfDFdwJrz7lrJkpxgDbOWe5GXnnPSU-Yqk7SE'
-);
+  const { createClient } = supabase;
 
-window.supabaseReady = true;
+  window.supabase = createClient(
+    'https://opauduwkhkbgmtjrkjlh.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wYXVkdXdraGtiZ210anJramxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyODg2ODEsImV4cCI6MjA5NDg2NDY4MX0.hfIoBIrfDFdwJrz7lrJkpxgDbOWe5GXnnPSU-Yqk7SE'
+  );
 
-console.log('[supabase] Client initialized and ready.');
+  window.supabaseReady = true;
+  console.log('[supabase] Client initialized and ready.');
+}
 
+initSupabase();

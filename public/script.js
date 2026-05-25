@@ -2170,7 +2170,7 @@ if (window.supabase && window.supabaseReady) {
     phone: newUser.phone || '',
     role: newUser.role || 'patient',
     password_hash: newUser.password || '',
-    provider: newUser.provider || 'email',
+    provider: newUser.provider || 'email_password',
     registered_date: new Date().toISOString(),
 }]);
 if (error) {
@@ -2200,6 +2200,7 @@ switchPage('dashboardPage');
 showVerificationMessage('Invalid verification code. Please try again.', 'error');
 }
 }
+
 // Validate verification code input (only numbers)
 function validateVerificationCode(input) {
 const cleaned = input.value.replace(/[^0-9]/g, '');

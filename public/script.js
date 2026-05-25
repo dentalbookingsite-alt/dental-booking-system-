@@ -314,12 +314,13 @@ const bookingMessage = `Booking Confirmed!\n\nYour dental appointment has been s
 const params = {
 to_email: appointment.userEmail,
 to_name: appointment.userName,
-booking_service: appointment.service,
-booking_date: appointment.date,
-booking_date_formatted: formattedDate,
-booking_time: appointment.time,
-booking_dentist: appointment.dentist,
-booking_phone: appointment.userPhone || '',
+  to_email: appointment.userEmail,
+  patient_name: appointment.userName,        // ✅ matches {{patient_name}}
+  appointment_id: String(appointment.id),    // ✅ matches {{appointment_id}}
+  appointment_date: formattedDate,           // ✅ matches {{appointment_date}}
+  appointment_time: appointment.time,        // ✅ matches {{appointment_time}}
+  dentist_name: appointment.dentist,         // ✅ matches {{dentist_name}}
+  service_name: appointment.service,       // ✅ matches {{service_name}}
 message: bookingMessage,
 subject: `Booking Confirmed: ${appointment.service}`,
 user_name: appointment.userName,

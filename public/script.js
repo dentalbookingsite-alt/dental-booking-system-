@@ -2461,10 +2461,17 @@ if (patientSearch) patientSearch.addEventListener('input', loadDentistPatients);
 }
 
 function isAssignedDentist(assignedName = '', currentName = '') {
-if (!assignedName || !currentName) return false;
-const normalizedAssigned = assignedName.toLowerCase();
-const normalizedCurrent = currentName.toLowerCase();
-return normalizedAssigned === normalizedCurrent || normalizedAssigned.includes(normalizedCurrent) || normalizedCurrent.includes(normalizedAssigned);
+  if (!assignedName || !currentName) return false;
+  
+  // If logged in as default "Dentist" account, show all appointments
+  if (currentName.toLowerCase().includes('dentist') || 
+      currentName.toLowerCase() === 'dentist team member') return true;
+
+  const normalizedAssigned = assignedName.toLowerCase();
+  const normalizedCurrent = currentName.toLowerCase();
+  return normalizedAssigned === normalizedCurrent || 
+         normalizedAssigned.includes(normalizedCurrent) || 
+         normalizedCurrent.includes(normalizedAssigned);
 }
 
 async function loadDentistAppointments(searchTerm = '') {
